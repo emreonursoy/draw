@@ -17,6 +17,26 @@ const load = (id: string) => {
   return { d, els: d.elements.map((r) => normalizeImported(r, DEFAULT_STYLE)).filter(Boolean) as any[] };
 };
 
+function EmptyThumb() {
+  return (
+    <div className="empty-thumb" role="img" aria-label="Blank canvas">
+      <svg viewBox="0 0 220 120" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <pattern id="dots" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.1" fill="currentColor" opacity=".22" /></pattern>
+        </defs>
+        <rect width="220" height="120" fill="url(#dots)" />
+        <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity=".38">
+          <path d="M38 34c18-3 40-2 56 0 2 12 2 24 0 34-18 3-38 3-57 0-2-11-2-23 1-34z" />
+          <path d="M150 28c14-6 32 4 31 20-1 16-18 24-32 17-13-7-14-30 1-37z" />
+          <path d="M98 52c14 0 26-2 40-2" /><path d="M130 44l9 6-9 7" />
+          <path d="M70 96c12-6 22 6 34-1s20 4 32-1" />
+        </g>
+      </svg>
+      <span className="empty-label"><b>Blank canvas</b><small>Open it and start drawing</small></span>
+    </div>
+  );
+}
+
 export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actions: any; onClose: () => void }) {
   const [tick, setTick] = useState(0);
   const [name, setName] = useState('');
@@ -71,7 +91,7 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
         {shown.map((p) => (
           <div key={p.id} className={`proj-card ${p.id === cur ? 'current' : ''}`}>
             <Button className="proj-thumb" aria-label={`Open ${p.name}`} onClick={() => { actions.switchProject(p.id); onClose(); }}>
-              {thumbs[p.id]?.url ? <img src={thumbs[p.id].url} alt="" draggable={false} /> : <span className="muted">Empty</span>}
+              {thumbs[p.id]?.url ? <img src={thumbs[p.id].url} alt="" draggable={false} /> : <EmptyThumb />}
             </Button>
             <div className="proj-meta">
               {editId === p.id ? (

@@ -190,3 +190,9 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .menu.color-pop { width: auto; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
 .toast-region { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); z-index: 120; display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .toast { background: #1b1b1f; color: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: var(--shadow); max-width: 90vw; font-size: 13px; position: static; transform: none; bottom: auto; left: auto; }
+
+.empty-thumb { position: relative; width: 100%; height: 100%; display: grid; place-items: center; color: #6965db; background: linear-gradient(160deg, #f7f7ff, #eef0fb); border-radius: 6px; overflow: hidden; }
+.empty-thumb svg { position: absolute; inset: 0; }
+.empty-label { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 12px; border-radius: 10px; background: rgba(255,255,255,.82); backdrop-filter: blur(3px); box-shadow: 0 1px 6px rgba(60,50,140,.12); }
+.empty-label b { color: #3b3a5c; font-size: 13px; } .empty-label small { color: #7d7ba0; font-size: 11px; }
+.proj-thumb:hover .empty-thumb { background: linear-gradient(160deg, #f1f1ff, #e6e9fb); }
