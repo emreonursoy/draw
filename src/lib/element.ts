@@ -264,9 +264,17 @@ const finite = (v: any, d: number, lo = -1e9, hi = 1e9) => (typeof v === 'number
 const color = (v: any, d: string) => (typeof v === 'string' && COLOR_RE.test(v.trim()) ? v.trim() : d);
 /** Stable short id for over-long ids, so every reference to the same long id maps to the same value. */
 const shortId = (v: string) => {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < v.length; i++) { h ^= v.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-  return `h${(h >>> 0).toString(36)}${v.length.toString(36)}`;
+  // cyrb53: a 53-bit hash, so collisions between distinct ids are practically impossible
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < v.length; i++) {
+    const c = v.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hash = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  return `h${hash.toString(36)}${v.length.toString(36)}`;
 };
 const sid = (v: any): string | null => (typeof v === 'string' && v.length > 0 ? (v.length <= 64 ? v : shortId(v)) : null);
 

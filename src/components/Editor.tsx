@@ -73,7 +73,7 @@ export default function Editor() {
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
     laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
-    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, fileProjectId: '' as string, lastLinked: '' as string, dropped: [] as unknown[], shared: null as any, saveT: 0, projectId: '' as string,
+    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, fileProjectId: '' as string, lastLinked: '' as string, linkSig: null as null | { els: DrawElement[]; bg: string; grid: boolean }, linkQueue: Promise.resolve() as Promise<void>, dropped: [] as { after: string | null; raw: unknown }[], shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -335,7 +335,17 @@ export default function Editor() {
   };
 
   /* ---------- sharing & linked file ---------- */
-  const drawFileData = () => ({ type: 'draw', version: 1, source: 'draw', elements: E(), appState: { viewBackgroundColor: A().viewBg, gridSize: A().grid ? GRID : null } });
+  /** Puts unreadable entries back next to the element they followed when loaded, so saving keeps them in place. */
+  const withHidden = (els: DrawElement[]): DrawElement[] => {
+    const hidden = misc.current.dropped;
+    if (!hidden.length) return els;
+    const ids = new Set(els.map((x) => x.id));
+    const out: unknown[] = hidden.filter((h) => h.after === null).map((h) => h.raw);
+    for (const el of els) { out.push(el); for (const h of hidden) if (h.after === el.id) out.push(h.raw); }
+    for (const h of hidden) if (h.after !== null && !ids.has(h.after)) out.push(h.raw);
+    return out as DrawElement[];
+  };
+  const drawFileData = () => ({ type: 'draw', version: 1, source: 'draw', elements: withHidden(E()), appState: { viewBackgroundColor: A().viewBg, gridSize: A().grid ? GRID : null } });
   const copyShareLink = async () => {
     const data = { elements: E().filter((e) => e.type !== 'comment'), viewBg: A().viewBg };
     const enc = await encodeScene(data);
@@ -355,22 +365,45 @@ export default function Editor() {
   };
   /** Autosaves into the linked file, but only while the project it was linked from is the open one. */
   const linkedJson = () => JSON.stringify(drawFileData(), null, 2);
-  /** Writes only when the drawing actually changed since the file was linked or last written. */
-  const writeLinked = async () => {
-    const h = misc.current.fileHandle;
-    if (!h || misc.current.fileProjectId !== misc.current.projectId) return;
-    const json = linkedJson();
-    if (json === misc.current.lastLinked) return;
-    misc.current.lastLinked = json;
-    try { const w = await h.createWritable(); await w.write(json); await w.close(); } catch {}
+  /** Cheap "did anything that goes into the file change?" check, so panning/zooming doesn't re-serialise the scene. */
+  const sameLinkSig = () => {
+    const s = misc.current.linkSig, a = A();
+    return !!s && s.els === E() && s.bg === a.viewBg && s.grid === a.grid;
+  };
+  const markLinkSig = () => { const a = A(); misc.current.linkSig = { els: E(), bg: a.viewBg, grid: a.grid }; };
+  /**
+   * Autosaves into the linked file while the project it was linked from is open. Writes are queued so they can't
+   * finish out of order, only happen when the drawing changed, and only count as done once the file is closed.
+   */
+  const writeLinked = () => {
+    misc.current.linkQueue = misc.current.linkQueue.then(async () => {
+      const h = misc.current.fileHandle;
+      if (!h || misc.current.fileProjectId !== misc.current.projectId || sameLinkSig()) return;
+      markLinkSig();
+      const json = linkedJson();
+      if (json === misc.current.lastLinked) return;
+      try {
+        const w = await h.createWritable();
+        await w.write(json);
+        await w.close();
+        misc.current.lastLinked = json;
+      } catch {
+        misc.current.linkSig = null;
+        if (misc.current.fileHandle === h) {
+          unlinkFile();
+          toast(`Couldn't write to “${h.name}”, so autosaving to that file has stopped. Your project is still saved in the browser.`);
+        }
+      }
+    });
   };
   const linkFile = (h: any, alreadyInFile = false) => {
     misc.current.fileHandle = h;
     misc.current.fileProjectId = misc.current.projectId;
     misc.current.lastLinked = alreadyInFile ? linkedJson() : '';
+    misc.current.linkSig = alreadyInFile ? { els: E(), bg: A().viewBg, grid: A().grid } : null;
     setApp({ fileLink: h.name });
   };
-  const unlinkFile = () => { misc.current.fileHandle = null; misc.current.fileProjectId = ''; setApp({ fileLink: null }); };
+  const unlinkFile = () => { misc.current.fileHandle = null; misc.current.fileProjectId = ''; misc.current.linkSig = null; setApp({ fileLink: null }); };
   const linkSaveFile = async () => {
     try {
       const h = await (window as any).showSaveFilePicker({ suggestedName: `${fileBase()}.draw`, types: [{ description: 'Drawing', accept: { 'application/json': ['.draw', '.json'] } }] });
@@ -448,8 +481,7 @@ export default function Editor() {
   };
   const snapshot = (): ProjectData => {
     const a = A();
-    const elements = misc.current.dropped.length ? ([...E(), ...misc.current.dropped] as DrawElement[]) : E();
-    return { elements, viewBg: a.viewBg, grid: a.grid, scrollX: a.scrollX, scrollY: a.scrollY, zoom: a.zoom };
+    return { elements: withHidden(E()), viewBg: a.viewBg, grid: a.grid, scrollX: a.scrollX, scrollY: a.scrollY, zoom: a.zoom };
   };
   /** Saves the open project. Returns false when it could not be stored (so callers can avoid discarding it). */
   const saveNow = (force = false, quiet = false): boolean => {
@@ -478,10 +510,10 @@ export default function Editor() {
     const d = getProject(id) || emptyData();
     const raw = Array.isArray(d.elements) ? (d.elements as unknown[]) : [];
     const els: DrawElement[] = [];
-    const dropped: unknown[] = [];
+    const dropped: { after: string | null; raw: unknown }[] = [];
     for (const r of raw) {
       const n = normalizeImported(r, DEFAULT_STYLE);
-      if (n) els.push(n); else dropped.push(r);
+      if (n) els.push(n); else dropped.push({ after: els.length ? els[els.length - 1].id : null, raw: r });
     }
     // Unreadable entries are hidden but written back unchanged on save, so loading never deletes stored data.
     misc.current.dropped = dropped;
@@ -537,11 +569,14 @@ export default function Editor() {
       } else {
         const raw: any[] = Array.isArray(data) ? data : data?.elements;
         if (!Array.isArray(raw)) throw new Error('bad');
-        const els = raw.map((r) => normalizeImported(r, DEFAULT_STYLE)).filter(Boolean) as DrawElement[];
-        const skipped = raw.length - els.length;
-        if (skipped) toast(`${skipped} element${skipped === 1 ? '' : 's'} in this file couldn't be read and ${skipped === 1 ? 'was' : 'were'} skipped.`);
-        d = { ...emptyData(), elements: els, viewBg: data?.appState?.viewBackgroundColor || '#ffffff', grid: !!data?.appState?.gridSize };
         native = data?.type === 'draw';
+        const norm = raw.map((r) => normalizeImported(r, DEFAULT_STYLE));
+        // Our own .draw files keep entries this version can't read (loadProject hides them and writes them back);
+        // anything else just skips them.
+        const els = (native ? norm.map((n, i) => n ?? raw[i]) : norm.filter(Boolean)) as DrawElement[];
+        const skipped = norm.filter((n) => !n).length;
+        if (skipped && !native) toast(`${skipped} element${skipped === 1 ? '' : 's'} in this file couldn't be read and ${skipped === 1 ? 'was' : 'were'} skipped.`);
+        d = { ...emptyData(), elements: els, viewBg: data?.appState?.viewBackgroundColor || '#ffffff', grid: !!data?.appState?.gridSize };
       }
       return { name: file.name.replace(/\.(draw|json)$/i, '') || 'Imported', data: d, native };
     } catch { toast('Could not read this file. Expected a .draw, .json or .md file.'); return null; }
