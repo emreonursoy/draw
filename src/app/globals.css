@@ -174,10 +174,11 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 
 /* slider */
 .slider { flex: 1; min-width: 0; }
-.slider-control { display: flex; align-items: center; height: 22px; cursor: pointer; }
+.slider-control { display: flex; align-items: center; height: 22px; cursor: pointer; margin: 0 8px; } /* room for the thumb at both ends */
 .slider-track { position: relative; width: 100%; height: 4px; border-radius: 2px; background: var(--border); }
 .slider-fill { height: 100%; border-radius: 2px; background: var(--accent); }
-.slider-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.25); top: 50%; transform: translate(-50%, -50%); }
+.slider-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: grab; } /* the SDK centres the thumb on its value itself */
+.slider-thumb[data-dragging] { cursor: grabbing; background: var(--accent); }
 .slider-thumb:hover { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 22%, transparent); }
 
 /* checkbox */
