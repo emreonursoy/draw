@@ -96,14 +96,20 @@ function CommentsTab({ app, comments, actions }: { app: AppState; comments: Retu
       {comments.length === 0 && <p className="muted">No comments yet. Pick the comment tool (C) and click on the canvas to start a thread.</p>}
       {comments.length > 0 && shown.length === 0 && <p className="muted">No {filter} comments.</p>}
       <ul className="result-list">
-        {shown.map((c, i) => (
-          <li key={c.id} className="comment-row">
-            <Button className={`result ${app.activeComment === c.id ? 'current' : ''}`} onClick={() => actions.openComment(c.id)}>
-              <span className="result-kind">#{comments.indexOf(c) + 1}{c.resolved ? ' · Resolved' : ''}{c.replies ? ` · ${c.replies} ${c.replies === 1 ? 'reply' : 'replies'}` : ''}</span>
-              <span className="result-text">{c.first || 'Empty thread'}</span>
-              {c.last > 0 && <span className="result-date">{new Date(c.last).toLocaleString()}</span>}
+        {shown.map((c) => (
+          <li key={c.id} className={`comment-card ${app.activeComment === c.id ? 'current' : ''} ${c.resolved ? 'is-resolved' : ''}`}>
+            <Button className="comment-main" aria-label={`Open comment ${comments.indexOf(c) + 1}: ${c.first || 'empty thread'}`} onClick={() => actions.openComment(c.id)}>
+              <span className="comment-top">
+                <span className="comment-id">{comments.indexOf(c) + 1}</span>
+                {c.resolved && <span className="comment-chip">Resolved</span>}
+              </span>
+              <span className="comment-text">{c.first || 'Empty thread'}</span>
+              <span className="comment-meta">
+                {c.replies > 0 && <span>{c.replies} {c.replies === 1 ? 'reply' : 'replies'}</span>}
+                {c.last > 0 && <span>{new Date(c.last).toLocaleString()}</span>}
+              </span>
             </Button>
-            {!app.viewOnly && <Button className="btn row-btn" aria-label={`${c.resolved ? 'Reopen' : 'Resolve'} comment ${i + 1}`} onClick={() => actions.toggleResolve(c.id)}>{c.resolved ? 'Reopen' : 'Resolve'}</Button>}
+            {!app.viewOnly && <Button className="btn row-btn" aria-label={`${c.resolved ? 'Reopen' : 'Resolve'} comment ${comments.indexOf(c) + 1}`} onClick={() => actions.toggleResolve(c.id)}>{c.resolved ? 'Reopen' : 'Resolve'}</Button>}
           </li>
         ))}
       </ul>
