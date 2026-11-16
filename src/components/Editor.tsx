@@ -809,7 +809,7 @@ export default function Editor() {
   };
 
   /* ---------- draw-to-shape ---------- */
-  /** Replaces a freehand stroke with the clean shape it resembles. Returns false when nothing matched. */
+  /** Replaces a freehand stroke with the clean shape it resembles. Returns false only for dots and tiny strokes. */
   const recognizeNow = (id: string): boolean => {
     const el = E().find((x) => x.id === id);
     if (!el || el.type !== 'freedraw') return false;
@@ -840,7 +840,7 @@ export default function Editor() {
     if (!s.length) return;
     let n = 0;
     for (const x of s) if (recognizeNow(x.id)) n++;
-    if (!n) return toast("Couldn't recognise a shape in that stroke. Try a cleaner rectangle, ellipse, diamond, triangle or straight line.");
+    if (!n) return toast("That stroke is too short to turn into a shape.");
     rerender();
     commit();
   };

@@ -75,12 +75,17 @@ describe('recognizeShape', () => {
     expect(r.points).toHaveLength(3);
   });
 
-  it('refuses scribbles, open arcs, dots and tiny strokes', () => {
+  it('always guesses the closest shape, even for scribbles and open arcs', () => {
     const r = rng(3);
     const scribble: Pt[] = Array.from({ length: 80 }, () => [r() * 200, r() * 200] as Pt);
-    expect(recognizeShape(scribble)).toBeNull();
+    expect(recognizeShape(scribble)).not.toBeNull();
     const arc: Pt[] = ellipse(100, 100, 80, 80, 60).slice(0, 30); // half circle
-    expect(recognizeShape(arc)).toBeNull();
+    expect(recognizeShape(arc)).not.toBeNull();
+    const thin: Pt[] = Array.from({ length: 30 }, (_, i) => [i * 6, (i % 2) * 3] as Pt);
+    expect(recognizeShape(thin)!.kind).toBe('line');
+  });
+
+  it('refuses dots and tiny strokes', () => {
     expect(recognizeShape([[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5]])).toBeNull();
     expect(recognizeShape([[0, 0]])).toBeNull();
     expect(recognizeShape([])).toBeNull();

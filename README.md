@@ -37,7 +37,7 @@ Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not r
 
 ### Drawing
 - Tools: selection, hand, rectangle, diamond, ellipse, arrow, line, freehand, text, image, embedded web page, bucket fill, eraser, laser pointer, frame, comment and Markdown block
-- **Draw to shape:** pause the pen for half a second at the end of a freehand stroke and it snaps to the closest clean rectangle, ellipse, diamond, triangle or straight line. Strokes that match nothing (scribbles, open arcs) stay as you drew them, and a selected stroke can be converted from the panel or context menu. Toggle it in the main menu
+- **Draw to shape:** pause the pen for half a second at the end of a freehand stroke and it snaps to the closest clean rectangle, ellipse, diamond, triangle or straight line. It always picks the closest of the five, even for rough or open strokes (only dots and tiny strokes are left alone), and a selected stroke can be converted from the panel or context menu. Toggle it in the main menu
 - **Bucket fill (`B`):** click a shape to fill it with the chosen colour, or click inside any area enclosed by lines or strokes to fill that area. Open areas are reported instead of leaking
 - **Embedded web pages (`I`):** paste a link to show a live page on the canvas (YouTube, Vimeo and Loom links become players). Pages stay unloaded, drawn as a card, until you double-click them; they load in a sandboxed iframe and can be unloaded, opened in a new tab or edited at any time
 - Hand-drawn rendering with three sloppiness levels, plus fill styles (hachure, cross-hatch, solid, zigzag), stroke width and style, rounded or sharp edges, opacity, colors and fonts

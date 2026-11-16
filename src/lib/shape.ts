@@ -61,7 +61,7 @@ const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
 /**
  * Guesses which clean shape a freehand stroke was meant to be: a straight line, rectangle, ellipse, diamond
- * or triangle. Returns null when the stroke doesn't clearly match any of them (e.g. a scribble or an open arc).
+ * or triangle. It always returns the closest of them; null only for dots and strokes too short to mean anything.
  */
 export function recognizeShape(raw: Pt[]): Recognized | null {
   if (raw.length < 6) return null;
@@ -85,9 +85,12 @@ export function recognizeShape(raw: Pt[]): Recognized | null {
     return { kind: 'line', x: Math.min(first[0], end[0]), y: Math.min(first[1], end[1]), width: Math.abs(end[0] - first[0]), height: Math.abs(end[1] - first[1]), points: [first, end] };
   }
 
-  // everything else has to be a closed loop
-  if (chord > 0.25 * len) return null;
-  if (w < 12 || h < 12) return null;
+  const lineOf = (): Recognized => {
+    const end: Pt = last;
+    return { kind: 'line', x: Math.min(first[0], end[0]), y: Math.min(first[1], end[1]), width: Math.abs(end[0] - first[0]), height: Math.abs(end[1] - first[1]), points: [first, end] };
+  };
+  // too thin to be a box or a loop: the closest shape is a line
+  if (w < 12 || h < 12) return lineOf();
 
   const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, a = w / 2, b = h / 2;
   const norm = (w + h) / 4;
@@ -96,25 +99,31 @@ export function recognizeShape(raw: Pt[]): Recognized | null {
   const rectErr = mean(pts.map((p) => edgeDist(p, rectPoly))) / norm;
   const diaPoly: Pt[] = [[cx, y0], [x1, cy], [cx, y1], [x0, cy]];
   const diaErr = mean(pts.map((p) => edgeDist(p, diaPoly))) / norm;
+  const lineErr = mean(pts.map((p) => distToSegment(p, first, last))) / norm;
 
-  // triangle: simplify the loop; it must collapse to three corners
+  // triangle: simplify the loop until it collapses to three corners
   let triErr = Infinity;
   let tri: Pt[] | null = null;
   const loop = [...pts, pts[0]];
-  const corners = rdp(loop, 0.09 * Math.hypot(w, h));
-  if (corners.length === 4 && dist(corners[0], corners[3]) < 1e-6) {
-    tri = corners.slice(0, 3);
-    triErr = mean(pts.map((p) => edgeDist(p, tri!))) / norm;
+  for (const f of [0.09, 0.13, 0.18, 0.25]) {
+    const corners = rdp(loop, f * Math.hypot(w, h));
+    if (corners.length === 4 && dist(corners[0], corners[3]) < 1e-6) {
+      tri = corners.slice(0, 3);
+      triErr = mean(pts.map((p) => edgeDist(p, tri!))) / norm;
+      break;
+    }
   }
 
-  const candidates: { kind: Recognized['kind']; err: number; max: number }[] = [
-    { kind: 'ellipse', err: ellipseErr, max: 0.1 },
-    { kind: 'rectangle', err: rectErr, max: 0.1 },
-    { kind: 'diamond', err: diaErr, max: 0.1 },
-    { kind: 'triangle', err: triErr, max: 0.1 },
+  // always pick the closest of the five: the user asked for a shape, so give the best guess
+  const candidates: { kind: Recognized['kind']; err: number }[] = [
+    { kind: 'ellipse', err: ellipseErr },
+    { kind: 'rectangle', err: rectErr },
+    { kind: 'diamond', err: diaErr },
+    { kind: 'triangle', err: triErr },
+    { kind: 'line', err: lineErr },
   ];
-  const best = candidates.filter((c) => c.err <= c.max).sort((p, q) => p.err - q.err)[0];
-  if (!best) return null;
+  const best = candidates.sort((p, q) => p.err - q.err)[0];
+  if (best.kind === 'line') return lineOf();
   if (best.kind === 'triangle') return { kind: 'triangle', x: x0, y: y0, width: w, height: h, points: tri! };
   return { kind: best.kind, x: x0, y: y0, width: w, height: h };
 }
