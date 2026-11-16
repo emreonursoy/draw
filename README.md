@@ -24,6 +24,15 @@ npm run start
 
 Press `?` inside the app to see every keyboard shortcut.
 
+## Tests
+
+```bash
+npm test          # run once
+npm run test:watch
+```
+
+Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not regress: cleaning of untrusted data, the project store and its storage-full and migration paths, share-link limits, the compatible JSON format, Markdown import/export and the Mermaid parser. Canvas drawing and mouse interaction are not unit-tested.
+
 ## Features
 
 ### Drawing
