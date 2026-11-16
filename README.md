@@ -6,7 +6,7 @@ Built with [Next.js](https://nextjs.org), [React](https://react.dev), [roughjs](
 
 ## Getting started
 
-Requires Node.js 18.18 or newer.
+Requires Node.js 20.9 or newer.
 
 ```bash
 git clone git@github.com:emreonursoy/draw.git
