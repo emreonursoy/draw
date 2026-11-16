@@ -3,7 +3,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Menu, MenuContent, MenuGroupLabel, MenuItem, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '@ui-sdk/react/menu';
 import type { AppState, DrawElement } from '@/lib/types';
 import { exportCanvas } from '@/lib/render';
-import { Button, IconButton, Input } from './ui';
+import { Button, createFileInputController, FilePick, IconButton, Input } from './ui';
 import { Icons } from './icons';
 
 const BG_COLORS = ['#ffffff', '#f8f9fa', '#f5faff', '#fffce8', '#fdf8f6'];
@@ -42,7 +42,7 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
         <MenuTrigger className="icon-btn" aria-label="Main menu">{Icons.menu}</MenuTrigger>
         <MenuContent className="menu" sideOffset={8} align="start">
           {it('projects', Icons.library, 'Projects…')}
-          {it('import', Icons.open, 'Import file (.draw, .json, .md)…', 'mod+o')}
+          {it('import', Icons.open, 'Import file…', 'mod+o')}
           {it('save', Icons.save, 'Save to file (.draw)', 'mod+s')}
           {it('json', Icons.save, 'Export as compatible .json')}
           {it('markdown', Icons.save, 'Export as Markdown (.md)')}
@@ -119,16 +119,16 @@ export function LibraryPanel({ items, actions, onClose }: { items: LibItem[]; ac
   const [q, setQ] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const pick = useRef(createFileInputController()).current;
   const shown = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="library" onPointerDown={(e) => e.stopPropagation()}>
       <div className="library-head"><b>Library</b><Button className="icon-btn sm" aria-label="Close library" onClick={onClose}>✕</Button></div>
       <Input className="field lib-search" aria-label="Search library" placeholder="Search library…" value={q} onValueChange={setQ} onKeyDown={(e) => e.stopPropagation()} />
       <div className="lib-tools">
-        <Button className="btn" onClick={() => fileRef.current?.click()}>Import</Button>
+        <Button className="btn" onClick={() => pick.open()}>Import</Button>
         <Button className="btn" disabled={!items.length} onClick={actions.exportLibrary}>Export</Button>
-        <input ref={fileRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) actions.importLibrary(f); e.target.value = ''; }} />
+        <FilePick controller={pick} accept=".json,application/json" onFile={(f) => actions.importLibrary(f)} />
       </div>
       {items.length === 0 && <p className="muted">No items yet. Select elements on the canvas and use “Add to library”.</p>}
       {items.length > 0 && shown.length === 0 && <p className="muted">No matches.</p>}

@@ -4,6 +4,7 @@ import type { AppState, DrawElement } from '@/lib/types';
 import { DARK_FILTER } from '@/lib/render';
 import { FONTS } from '@/lib/types';
 import { fontString, LINE_HEIGHT, measureText } from '@/lib/element';
+import { Textarea } from './ui';
 
 export default function TextEditor({ el, app, dark, onCommit }: { el: DrawElement; app: AppState; dark: boolean; onCommit: (t: string | null) => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -25,7 +26,6 @@ export default function TextEditor({ el, app, dark, onCommit }: { el: DrawElemen
   };
   useEffect(() => {
     const ta = ref.current!;
-    ta.value = el.text;
     fit();
     const t = setTimeout(() => { ta.focus(); if (isFrame) ta.select(); else ta.setSelectionRange(ta.value.length, ta.value.length); }, 10);
     return () => clearTimeout(t);
@@ -47,7 +47,7 @@ export default function TextEditor({ el, app, dark, onCommit }: { el: DrawElemen
   void m;
   return (
     <div className="text-editor-wrap" style={{ filter: dark ? DARK_FILTER : undefined }}>
-      <textarea
+      <Textarea
         id="draw-text-editor"
         ref={ref}
         className="text-editor"
@@ -62,6 +62,7 @@ export default function TextEditor({ el, app, dark, onCommit }: { el: DrawElemen
           } : {}),
         }}
         placeholder={isMd ? '# Write Markdown…  (Esc or click outside to finish)' : undefined}
+        defaultValue={el.text}
         onInput={fit}
         onBlur={() => finish(null)}
         onKeyDown={(e) => {

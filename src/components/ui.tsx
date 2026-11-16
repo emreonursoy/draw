@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from '@ui-sdk/react/slider';
 import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@ui-sdk/react/tooltip';
+import { createFileInputController, FileInput } from '@ui-sdk/react/file-input';
+import { ColorPicker, ColorPickerArea, ColorPickerAreaThumb, ColorPickerInput, ColorPickerSlider, ColorPickerSliderThumb } from '@ui-sdk/react/color-picker';
 
 export { Button };
 export { Input } from '@ui-sdk/react/input';
@@ -76,5 +78,34 @@ export function CheckField({ checked, onChange, children }: { checked: boolean; 
       </Checkbox>
       {children}
     </label>
+  );
+}
+
+export { createFileInputController };
+
+/** Invisible SDK file input; open it from any button with `controller.open()`. Calls `onFile` with the chosen file. */
+export function FilePick({ controller, accept, onFile }: { controller: ReturnType<typeof createFileInputController>; accept?: string; onFile: (f: File) => void }) {
+  return (
+    <FileInput
+      controller={controller} accept={accept} className="file-pick" aria-label="Choose a file"
+      onValueChange={(files) => {
+        const f = files[0];
+        if (!f) return;
+        controller.clear(); // ready for the next pick (and the same file again)
+        onFile(f);
+      }}
+      onReject={() => {}}
+    />
+  );
+}
+
+/** Saturation/brightness area, hue slider and hex field built from the SDK colour picker. */
+export function ColorField({ value, onChange, label }: { value: string; onChange: (hex: string) => void; label: string }) {
+  return (
+    <ColorPicker aria-label={label} format="hex" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#000000'} onValueChange={(v: any) => { if (typeof v === 'string') onChange(v.toLowerCase()); }} className="cp">
+      <ColorPickerArea className="cp-area"><ColorPickerAreaThumb className="cp-thumb" /></ColorPickerArea>
+      <ColorPickerSlider channel="hue" className="cp-slider"><ColorPickerSliderThumb className="cp-thumb" /></ColorPickerSlider>
+      <ColorPickerInput aria-label="Hex color" className="field" />
+    </ColorPicker>
   );
 }

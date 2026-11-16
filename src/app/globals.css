@@ -213,3 +213,27 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 [data-theme='dark'] .empty-label { background: rgba(35,35,48,.85); box-shadow: 0 1px 8px rgba(0,0,0,.4); }
 [data-theme='dark'] .empty-label b { color: #e8e8f4; } [data-theme='dark'] .empty-label small { color: #9a9ac0; }
 [data-theme='dark'] .proj-thumb:hover .empty-thumb { background: linear-gradient(160deg, #2c2c44, #23243a); }
+
+/* ---------- menu & button hover polish ---------- */
+.file-pick { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; pointer-events: none; }
+.menu { padding: 6px; }
+.menu-item { border-radius: 8px; padding: 8px 10px; min-height: 34px; }
+.menu-item:hover:not([data-highlighted]) { background: transparent; }
+.menu-item[data-highlighted] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.menu-item:focus-visible, .menu-item[data-highlighted]:focus-visible { outline: none; }
+.menu-item[data-highlighted] .mi-icon { color: var(--accent); }
+.mi-icon { width: 20px; height: 20px; display: grid; place-items: center; flex: none; }
+.mi-icon svg { width: 18px; height: 18px; }
+.mi-label { white-space: nowrap; }
+.menu-item.danger[data-highlighted] .mi-icon { color: var(--danger); }
+.icon-btn:not(.sm):hover:not(:disabled), .project-pill:hover, .lib-btn:hover { background: color-mix(in srgb, var(--accent) 12%, var(--bg-ui)); }
+.icon-btn:not(.sm):active:not(:disabled), .project-pill:active, .lib-btn:active { transform: none; background: color-mix(in srgb, var(--accent) 20%, var(--bg-ui)); }
+.icon-btn:focus-visible, .project-pill:focus-visible, .lib-btn:focus-visible { outline-offset: 1px; }
+
+/* colour picker */
+.cp { display: flex; flex-direction: column; gap: 8px; width: 236px; margin-top: 6px; }
+.cp-area { position: relative; height: 130px; border-radius: 8px; background: var(--color-area-background); cursor: crosshair; touch-action: none; }
+.cp-slider { position: relative; height: 12px; border-radius: 6px; background: var(--color-slider-background); touch-action: none; }
+.cp-thumb { position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.3); background: var(--color-picker-color); transform: translate(-50%, -50%); }
+.cp-slider .cp-thumb { top: 50%; }
+.cp .field { height: 32px; flex: none; width: 100%; font-family: ui-monospace, Menlo, monospace; }

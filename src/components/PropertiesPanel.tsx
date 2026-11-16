@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import type { AppState, DrawElement, Style } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@ui-sdk/react/popover';
 import { Icons } from './icons';
-import { Button, IconButton, Input, OptionGroup, SelectField, SliderField, type Choice } from './ui';
+import { Button, ColorField, IconButton, OptionGroup, SelectField, SliderField, type Choice } from './ui';
 
 const STROKES = ['#1e1e1e', '#e03131', '#2f9e44', '#1971c2', '#f08c00'];
 const BGS = ['transparent', '#ffc9c9', '#b2f2bb', '#a5d8ff', '#ffec99'];
@@ -36,7 +36,6 @@ const line = (w: number, dash?: string) => <svg width="20" height="18"><line x1=
 const stroke18 = (d: ReactNode, w = 1.6) => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round">{d}</svg>;
 
 function ColorPicker({ value, presets, onChange, transparent, label }: { value: string; presets: string[]; onChange: (c: string) => void; transparent?: boolean; label: string }) {
-  const [hex, setHex] = useState('');
   const sw = (c: string, size = 'sm') => (
     <Button key={c + size} aria-label={c === 'transparent' ? 'No color' : c} className={`swatch ${size} ${value.toLowerCase() === c ? 'active' : ''} ${c === 'transparent' ? 'transparent' : ''}`} style={{ background: c === 'transparent' ? undefined : c }} onClick={() => onChange(c)} />
   );
@@ -46,20 +45,13 @@ function ColorPicker({ value, presets, onChange, transparent, label }: { value: 
         {presets.map((c) => sw(c))}
         <span className="sep" />
         <Popover>
-          <PopoverTrigger className="swatch sm current" aria-label={`More ${label} colors`} style={{ background: value === 'transparent' ? undefined : value }} onClick={() => setHex(value === 'transparent' ? '' : value)}>
+          <PopoverTrigger className="swatch sm current" aria-label={`More ${label} colors`} style={{ background: value === 'transparent' ? undefined : value }}>
             {value === 'transparent' && <span className="slash" />}
           </PopoverTrigger>
           <PopoverContent className="menu color-pop" side="right" align="start" sideOffset={10} aria-label={`${label} colors`}>
             {transparent && <div className="color-row">{sw('transparent', 'md')}</div>}
             {HUES.map((row, i) => <div key={i} className="color-row">{row.map((c) => sw(c, 'md'))}</div>)}
-            <div className="hex-row">
-              <span>#</span>
-              <Input
-                value={hex.replace('#', '')} maxLength={6} placeholder="hex" spellCheck={false} aria-label="Hex color" className="field"
-                onValueChange={(v: string) => { setHex('#' + v); if (/^[0-9a-f]{6}$/i.test(v)) onChange('#' + v.toLowerCase()); }}
-              />
-              <input type="color" aria-label="Pick a custom color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#000000'} onChange={(e) => { onChange(e.target.value); setHex(e.target.value); }} />
-            </div>
+            <ColorField label={`${label} color`} value={value === 'transparent' ? '#000000' : value} onChange={onChange} />
           </PopoverContent>
         </Popover>
       </div>

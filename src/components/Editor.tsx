@@ -21,7 +21,7 @@ import { MermaidDialog } from './MermaidDialog';
 import Presenter from './Presenter';
 import CommentPopover from './CommentPopover';
 import Toolbar from './Toolbar';
-import { Button } from './ui';
+import { Button, createFileInputController, FilePick } from './ui';
 import { createMenuController } from '@ui-sdk/react/menu';
 import { Toast, ToastRegion, ToastTitle } from '@ui-sdk/react/toast';
 import { Modal } from './Modal';
@@ -77,8 +77,8 @@ export default function Editor() {
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const imgRef = useRef<HTMLInputElement>(null);
+  const filePick = useRef(createFileInputController()).current;
+  const imgPick = useRef(createFileInputController()).current;
   const ctxMenu = useRef(createMenuController()).current;
   const [library, setLibraryState] = useState<LibItem[]>([]);
 
@@ -156,7 +156,7 @@ export default function Editor() {
     const p: Partial<AppState> = { tool: t, contextMenu: null };
     if (t !== 'selection') p.selectedIds = {};
     setApp(p);
-    if (t === 'image') { misc.current.imageAt = null; imgRef.current?.click(); }
+    if (t === 'image') { misc.current.imageAt = null; imgPick.open(); }
     void a;
   };
 
@@ -1085,7 +1085,7 @@ export default function Editor() {
           setApp({ activeComment: c.id, selectedIds: {} });
           break;
         }
-        if (a.tool === 'image') { misc.current.imageAt = d.p; imgRef.current?.click(); break; }
+        if (a.tool === 'image') { misc.current.imageAt = d.p; imgPick.open(); break; }
         const hit = topHit(d.p);
         if (hit && (hit.type === 'text' || hit.type === 'markdown')) { startEdit(hit, false); break; }
         if (a.tool === 'markdown') {
@@ -1288,7 +1288,7 @@ export default function Editor() {
       if (mod && k === 'd') { e.preventDefault(); duplicate(); return; }
       if (mod && k === 'g') { e.preventDefault(); e.shiftKey ? ungroup() : group(); return; }
       if (mod && k === 's') { e.preventDefault(); saveFile(); return; }
-      if (mod && k === 'o') { e.preventDefault(); fileRef.current?.click(); return; }
+      if (mod && k === 'o') { e.preventDefault(); filePick.open(); return; }
       if (mod && e.shiftKey && k === 'e') { e.preventDefault(); setApp({ exportOpen: true }); return; }
       if (mod && e.shiftKey && k === 'l') { e.preventDefault(); toggleLock(); return; }
       if (mod && k === "'") { e.preventDefault(); setApp({ grid: !a.grid }); return; }
@@ -1417,7 +1417,7 @@ export default function Editor() {
   const actions = {
     setApp, setTool, applyStyle, undo, redo, canUndo, canRedo, duplicate, deleteSelected, layer, group, ungroup, toggleLock,
     align, distribute, flip, zoomAt, zoomToElements: () => zoomToElements(E(), 1), resetZoom: () => setApp({ zoom: 1 }),
-    saveFile, exportJsonFile, exportMarkdownFile, switchProject, newProject, removeProject, saveNow, refreshName, openFile: () => fileRef.current?.click(), clearCanvas, copyStyle, pasteStyle, addToLibrary, selectAll,
+    saveFile, exportJsonFile, exportMarkdownFile, switchProject, newProject, removeProject, saveNow, refreshName, openFile: () => filePick.open(), clearCanvas, copyStyle, pasteStyle, addToLibrary, selectAll,
     copy: () => copySelected(), cut: async () => { await copySelected(); deleteSelected(); },
     paste: async () => {
       try { const t = await navigator.clipboard.readText(); try { const d = JSON.parse(t); if (d?.type === 'draw/clipboard') return pasteElements(d.elements); } catch {} if (t) return insertText(t); } catch {}
@@ -1520,11 +1520,8 @@ export default function Editor() {
         </Modal>
       )}
       {app.helpOpen && <HelpDialog onClose={() => setApp({ helpOpen: false })} />}
-      <input ref={fileRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f); e.target.value = ''; }} />
-      <input
-        ref={imgRef} type="file" accept="image/*" hidden
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) insertImageFile(f, misc.current.imageAt ?? undefined); else if (A().tool === 'image') setApp({ tool: 'selection' }); e.target.value = ''; }}
-      />
+      <FilePick controller={filePick} onFile={(f) => openFile(f)} />
+      <FilePick controller={imgPick} accept="image/*" onFile={(f) => insertImageFile(f, misc.current.imageAt ?? undefined)} />
     </div>
   );
 }
