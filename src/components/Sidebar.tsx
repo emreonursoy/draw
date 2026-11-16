@@ -4,7 +4,9 @@ import type { AppState, DrawElement, SidebarTab } from '@/lib/types';
 import { listComments, type SearchHit } from '@/lib/search';
 import { LibraryTab, type LibItem, type LibraryActions } from './Chrome';
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@ui-sdk/react/tabs';
-import { Button, Input, OptionGroup } from './ui';
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@ui-sdk/react/menu';
+import { Icons } from './icons';
+import { Button, Input, SelectField } from './ui';
 
 export interface SidebarActions extends LibraryActions {
   setApp: (p: Partial<AppState>) => void;
@@ -12,6 +14,7 @@ export interface SidebarActions extends LibraryActions {
   goToSearch: (i: number) => void;
   openComment: (id: string) => void;
   toggleResolve: (id: string) => void;
+  deleteComment: (id: string) => void;
 }
 
 /** The right-hand panel: the library, a search over the canvas, and the list of comment threads. */
@@ -87,10 +90,10 @@ function CommentsTab({ app, comments, actions }: { app: AppState; comments: Retu
   return (
     <>
       <div className="comment-filter">
-        <OptionGroup<CommentFilter> label="Show comments" value={filter} onChange={setFilter} options={[
-          { value: 'all', label: 'All comments', node: 'All' },
-          { value: 'open', label: 'Open comments', node: 'Open' },
-          { value: 'resolved', label: 'Resolved comments', node: 'Resolved' },
+        <SelectField label="Show comments" className="comment-select" value={filter} onChange={(v) => setFilter(v as CommentFilter)} items={[
+          { value: 'all', label: `All comments (${comments.length})` },
+          { value: 'open', label: `Open (${comments.filter((c) => !c.resolved).length})` },
+          { value: 'resolved', label: `Resolved (${comments.filter((c) => c.resolved).length})` },
         ]} />
       </div>
       {comments.length === 0 && <p className="muted">No comments yet. Pick the comment tool (C) and click on the canvas to start a thread.</p>}
@@ -109,7 +112,19 @@ function CommentsTab({ app, comments, actions }: { app: AppState; comments: Retu
                 {c.last > 0 && <span>{new Date(c.last).toLocaleString()}</span>}
               </span>
             </Button>
-            {!app.viewOnly && <Button className="btn row-btn" aria-label={`${c.resolved ? 'Reopen' : 'Resolve'} comment ${comments.indexOf(c) + 1}`} onClick={() => actions.toggleResolve(c.id)}>{c.resolved ? 'Reopen' : 'Resolve'}</Button>}
+            <Menu onAction={(v: string) => { if (v === 'show') actions.openComment(c.id); else if (v === 'resolve') actions.toggleResolve(c.id); else if (v === 'delete') actions.deleteComment(c.id); }}>
+              <MenuTrigger className="icon-btn sm row-more" aria-label={`Actions for comment ${comments.indexOf(c) + 1}`}>{Icons.more}</MenuTrigger>
+              <MenuContent className="menu" align="end" sideOffset={4} aria-label="Comment actions">
+                <MenuItem value="show" className="menu-item"><span className="mi-icon">{Icons.locate}</span><span className="mi-label">Show on canvas</span></MenuItem>
+                {!app.viewOnly && (
+                  <>
+                    <MenuItem value="resolve" className="menu-item"><span className="mi-icon">{Icons.check}</span><span className="mi-label">{c.resolved ? 'Reopen' : 'Resolve'}</span></MenuItem>
+                    <MenuSeparator className="menu-sep" />
+                    <MenuItem value="delete" className="menu-item danger"><span className="mi-icon">{Icons.trash}</span><span className="mi-label">Delete</span></MenuItem>
+                  </>
+                )}
+              </MenuContent>
+            </Menu>
           </li>
         ))}
       </ul>
