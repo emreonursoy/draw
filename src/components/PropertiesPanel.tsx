@@ -1,5 +1,5 @@
 'use client';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { AppState, DrawElement, Style } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@ui-sdk/react/popover';
 import { Icons } from './icons';

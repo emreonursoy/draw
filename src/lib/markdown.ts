@@ -55,7 +55,7 @@ export function parseMarkdown(src: string, base: Style): DrawElement[] {
       if (fence[2].toLowerCase() === 'mermaid') {
         const r = parseMermaid(body.join('\n'), base);
         if (r.elements?.length) {
-          const [x1, y1, x2, y2] = commonBounds(r.elements);
+          const [x1, y1, , y2] = commonBounds(r.elements);
           const map = new Map(r.elements.map((e) => [e.id, uid()]));
           for (const e of r.elements) {
             out.push({ ...e, id: map.get(e.id)!, x: e.x - x1, y: e.y - y1 + y, startBinding: e.startBinding ? map.get(e.startBinding) ?? null : null, endBinding: e.endBinding ? map.get(e.endBinding) ?? null : null });

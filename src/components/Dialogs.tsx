@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { AppState, DrawElement } from '@/lib/types';
 import { exportCanvas, exportSVG } from '@/lib/render';
 import { orderedFrames } from '@/lib/element';
@@ -12,13 +12,9 @@ export function ExportDialog({ app, elements, selected, onClose }: { app: AppSta
   const [dark, setDark] = useState(app.theme === 'dark');
   const [scale, setScale] = useState(2);
   const [only, setOnly] = useState(selected.length > 0);
-  const [url, setUrl] = useState('');
   const els = only && selected.length ? selected : elements;
   const bgColor = bg ? app.viewBg : null;
-  useEffect(() => {
-    const c = exportCanvas(els, { padding: 16, scale: 1, background: bgColor, dark });
-    setUrl(c ? c.toDataURL() : '');
-  }, [els, bgColor, dark]);
+  const url = useMemo(() => exportCanvas(els, { padding: 16, scale: 1, background: bgColor, dark })?.toDataURL() ?? '', [els, bgColor, dark]);
   const png = () => {
     const c = exportCanvas(els, { padding: 16, scale, background: bgColor, dark });
     c?.toBlob((b) => b && download(b, 'draw.png'));

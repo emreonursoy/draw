@@ -40,7 +40,7 @@ function EmptyThumb() {
   );
 }
 
-export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actions: any; onClose: () => void }) {
+export function ProjectsDialog({ actions, onClose }: { app: AppState; actions: any; onClose: () => void }) {
   const [tick, setTick] = useState(0);
   const [name, setName] = useState('');
   const [q, setQ] = useState('');

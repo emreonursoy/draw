@@ -24,6 +24,16 @@ npm run start
 
 Press `?` inside the app to see every keyboard shortcut.
 
+## Checks
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint        # ESLint (Next.js + React Hooks rules)
+npm run check       # typecheck + lint + tests
+```
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs typecheck, lint, tests and the production build on every push and pull request. TypeScript 7 is used for `tsc`; `typescript` itself is aliased to the 6.x compatibility package only because typescript-eslint does not support 7 yet.
+
 ## Tests
 
 ```bash

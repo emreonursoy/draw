@@ -3,7 +3,7 @@ import type { AppState, ToolType } from '@/lib/types';
 import { Icons } from './icons';
 import { Toolbar as SdkToolbar, ToolbarButton, ToolbarSeparator } from '@ui-sdk/react/toolbar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@ui-sdk/react/tooltip';
-import { Menu, MenuContent, MenuGroupLabel, MenuItem, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '@ui-sdk/react/menu';
+import { Menu, MenuContent, MenuGroupLabel, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '@ui-sdk/react/menu';
 
 interface Tool { id: ToolType; label: string; key: string; icon: keyof typeof Icons }
 

@@ -3,8 +3,8 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import type { AppState, DrawElement, Pt, Style, ToolType } from '@/lib/types';
 import { DEFAULT_STYLE } from '@/lib/types';
 import {
-  absPoints, boundaryPoint, canHaveLabel, commonBounds, elAABB, elBounds, elCenter, findBindTarget, fitText,
-  frameChildren, groupSelect, hitElement, isBindable, isLinear, isPoints, measureText, newElement, normalizeImported,
+  absPoints, canHaveLabel, commonBounds, elAABB, elBounds, elCenter, findBindTarget, fitText,
+  frameChildren, groupSelect, hitElement, isLinear, isPoints, measureText, newElement, normalizeImported,
   updateBoundArrows, withAbsPoints,
 } from '@/lib/element';
 import { renderScene, DARK_FILTER, exportCanvas } from '@/lib/render';
@@ -906,7 +906,8 @@ export default function Editor() {
   };
   const editEmbed = () => { const s = sel().find((x) => x.type === 'embed'); if (s) setApp({ embedDialog: { id: s.id } }); };
   const unloadEmbed = (id: string) => {
-    const { [id]: _gone, ...rest } = A().loadedEmbeds;
+    const rest = { ...A().loadedEmbeds };
+    delete rest[id];
     setApp({ loadedEmbeds: rest, activeEmbed: A().activeEmbed === id ? null : A().activeEmbed });
   };
 
@@ -1018,7 +1019,7 @@ export default function Editor() {
         runLaser();
         break;
       case 'rotate': {
-        let ang = Math.atan2(raw[1] - d.center[1], raw[0] - d.center[0]);
+        const ang = Math.atan2(raw[1] - d.center[1], raw[0] - d.center[0]);
         let delta = ang - d.startAngle;
         if (e.shiftKey) {
           const base = d.snap.length === 1 ? d.snap[0].angle : 0;
@@ -1072,7 +1073,8 @@ export default function Editor() {
         } else {
           let dx = p[0] - d.start[0], dy = p[1] - d.start[1];
           if (e.shiftKey) { const m = Math.max(Math.abs(dx), Math.abs(dy)); dx = Math.sign(dx || 1) * m; dy = Math.sign(dy || 1) * m; }
-          let x1 = d.start[0], y1 = d.start[1], x2 = x1 + dx, y2 = y1 + dy;
+          let x1 = d.start[0], y1 = d.start[1];
+          const x2 = x1 + dx, y2 = y1 + dy;
           if (e.altKey) { x1 = d.start[0] - dx; y1 = d.start[1] - dy; }
           upd = { ...el, x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) };
         }
@@ -1401,11 +1403,11 @@ export default function Editor() {
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
       if (e.key === ' ' ) { misc.current.space = true; e.preventDefault(); if (overlayRef.current) overlayRef.current.style.cursor = 'grab'; return; }
-      if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+      if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if (mod && k === 'y') { e.preventDefault(); redo(); return; }
       if (mod && k === 'a') { e.preventDefault(); selectAll(); return; }
       if (mod && k === 'd') { e.preventDefault(); duplicate(); return; }
-      if (mod && k === 'g') { e.preventDefault(); e.shiftKey ? ungroup() : group(); return; }
+      if (mod && k === 'g') { e.preventDefault(); if (e.shiftKey) ungroup(); else group(); return; }
       if (mod && k === 's') { e.preventDefault(); saveFile(); return; }
       if (mod && k === 'o') { e.preventDefault(); filePick.open(); return; }
       if (mod && e.shiftKey && k === 'e') { e.preventDefault(); setApp({ exportOpen: true }); return; }
@@ -1518,11 +1520,14 @@ export default function Editor() {
   // autosave
   const app = st.current.app;
   const elements = st.current.elements;
+  // saveNow/writeLinked are recreated every render but only read refs, so they are deliberately not dependencies
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     clearTimeout(misc.current.saveT);
     misc.current.saveT = window.setTimeout(() => { if (!misc.current.shared) saveNow(); writeLinked(); }, 400);
     try { localStorage.setItem(THEME_KEY, app.theme); } catch {}
   }, [elements, app.viewBg, app.grid, app.theme, app.scrollX, app.scrollY, app.zoom]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   /* ---------- render ---------- */
   const selected = elements.filter((e) => app.selectedIds[e.id]);
