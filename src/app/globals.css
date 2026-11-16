@@ -201,3 +201,7 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .proj-meta b { display: block; height: 30px; line-height: 30px; }
 .proj-edit.field { height: 30px; padding: 0 10px; flex: none; width: 100%; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); font-weight: 600; }
 .proj-edit-actions { display: flex; gap: 6px; padding: 6px 10px 10px; } .proj-edit-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+
+/* dividers */
+.proj-thumb { border-bottom: 1px solid var(--border); }
+.lib-tools { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
