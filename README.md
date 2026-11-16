@@ -92,6 +92,14 @@ src/
 
 All editor state lives in a small set of refs inside `components/Editor.tsx`; the canvas is redrawn on every change and element objects are treated as immutable so rendered shapes can be cached.
 
+## Security
+
+- No backend, accounts or network requests: drawings stay in `localStorage`, so there is nothing to rate-limit. If you deploy on Vercel you still get its platform DDoS protection
+- `next.config.mjs` sends a strict Content-Security-Policy (same-origin only, no framing, no plugins) plus `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP and HSTS headers, and hides `X-Powered-By`
+- Fonts are self-hosted (`@fontsource`), so no third-party requests are made
+- Share links and imported files are parsed as data only (never executed) and are size-limited: 4 MB link, 40 MB decompressed, 20,000 elements, 100 MB files
+- PostCSS is pinned to a patched version through `overrides`; `npm audit` reports 0 vulnerabilities
+
 ## Not included
 
 Live collaboration, server sync and accounts are intentionally out of scope, since everything stays in the browser. PPTX export and AI features are also left out.

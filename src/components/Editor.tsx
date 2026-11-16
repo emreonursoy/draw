@@ -453,6 +453,7 @@ export default function Editor() {
   const refreshName = () => setApp({ projectName: listProjects().find((p) => p.id === misc.current.projectId)?.name ?? 'Untitled' });
   /** Import a .draw or compatible .json file as a new project */
   const openFile = async (file: File) => {
+    if (file.size > 100 * 1024 * 1024) return toast('That file is too large (limit 100 MB).');
     if (file.type.startsWith('image/')) return insertImageFile(file);
     if (/\.(md|markdown|mdx|txt)$/i.test(file.name) || file.type === 'text/markdown') {
       const els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE });
