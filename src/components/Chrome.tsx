@@ -134,6 +134,7 @@ export interface LibraryActions {
 export function LibraryTab({ items, actions }: { items: LibItem[]; actions: LibraryActions }) {
   const [q, setQ] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const pick = useRef(createFileInputController()).current;
   const shown = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
@@ -152,7 +153,17 @@ export function LibraryTab({ items, actions }: { items: LibItem[]; actions: Libr
           <div key={it.id} className="library-card">
             <div className="library-item" title="Click to insert" onClick={() => actions.insertLibrary(it)}>
               <Thumb items={it.elements} />
-              <Button className="del" aria-label={`Remove ${it.name}`} onClick={(e) => { e.stopPropagation(); actions.deleteLibrary(it.id); }}>✕</Button>
+              <Button className="del" aria-label={`Delete ${it.name}`} title="Delete from library" onClick={(e) => { e.stopPropagation(); setConfirmId(it.id); }}>{Icons.trash}</Button>
+              {confirmId === it.id && (
+                <div className="lib-confirm" role="alertdialog" aria-label={`Delete ${it.name}?`} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setConfirmId(null); }}>
+                  <b>Delete this item?</b>
+                  <small>This can’t be undone.</small>
+                  <div>
+                    <Button className="btn" autoFocus style={{ padding: '0 10px', height: 28 }} onClick={() => setConfirmId(null)}>Cancel</Button>
+                    <Button className="btn danger-btn" style={{ padding: '0 10px', height: 28 }} onClick={() => { actions.deleteLibrary(it.id); setConfirmId(null); }}>Delete</Button>
+                  </div>
+                </div>
+              )}
             </div>
             {editId === it.id ? (
               <Input
