@@ -11,6 +11,9 @@ import { Icons } from './icons';
 import { Modal } from './Modal';
 import { Button, IconButton, Input, SelectField } from './ui';
 
+/** Thumbnails keyed by project id and its last-saved time, so unchanged projects aren't re-rendered on every open. */
+const thumbCache = new Map<string, { at: number; url: string; count: number }>();
+
 const load = (id: string) => {
   const d = getProject(id);
   if (!d) return null;
@@ -53,6 +56,8 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
   const thumbs = useMemo(() => {
     const out: Record<string, { url: string; count: number }> = {};
     for (const p of list) {
+      const hit = thumbCache.get(p.id);
+      if (hit && hit.at === p.updatedAt) { out[p.id] = hit; continue; }
       const l = load(p.id);
       if (!l) continue;
       let url = '';
@@ -63,8 +68,11 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
           url = exportCanvas(l.els, { padding: 12, scale: k, background: l.d.viewBg, dark: false })?.toDataURL() ?? '';
         }
       } catch {}
-      out[p.id] = { url, count: l.els.length };
+      const entry = { at: p.updatedAt, url, count: l.els.length };
+      thumbCache.set(p.id, entry);
+      out[p.id] = entry;
     }
+    for (const id of [...thumbCache.keys()]) if (!list.some((p) => p.id === id)) thumbCache.delete(id);
     return out;
   }, [list]);
   const shown = list.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())).sort((a, b) => (sort === 'name' ? a.name.localeCompare(b.name) : b.updatedAt - a.updatedAt));

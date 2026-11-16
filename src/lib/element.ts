@@ -262,7 +262,13 @@ const COLOR_RE = /^(#[0-9a-f]{3,8}|transparent|[a-z]{3,20}|(?:rgb|hsl)a?\([0-9a-
 const HEADS = ['arrow', 'bar', 'dot', 'triangle'];
 const finite = (v: any, d: number, lo = -1e9, hi = 1e9) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
 const color = (v: any, d: string) => (typeof v === 'string' && COLOR_RE.test(v.trim()) ? v.trim() : d);
-const sid = (v: any): string | null => (typeof v === 'string' && v.length > 0 && v.length <= 64 ? v : null);
+/** Stable short id for over-long ids, so every reference to the same long id maps to the same value. */
+const shortId = (v: string) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < v.length; i++) { h ^= v.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return `h${(h >>> 0).toString(36)}${v.length.toString(36)}`;
+};
+const sid = (v: any): string | null => (typeof v === 'string' && v.length > 0 ? (v.length <= 64 ? v : shortId(v)) : null);
 
 /**
  * Turns untrusted data (saved projects, shared links, imported files) into a well-formed element:
