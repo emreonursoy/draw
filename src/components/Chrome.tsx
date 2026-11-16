@@ -5,6 +5,7 @@ import type { AppState, DrawElement } from '@/lib/types';
 import { exportCanvas } from '@/lib/render';
 import { Button, createFileInputController, FilePick, IconButton, Input } from './ui';
 import { Icons } from './icons';
+import { Modal } from './Modal';
 
 const BG_COLORS = ['#ffffff', '#f8f9fa', '#f5faff', '#fffce8', '#fdf8f6'];
 
@@ -135,6 +136,7 @@ export function LibraryTab({ items, actions }: { items: LibItem[]; actions: Libr
   const [q, setQ] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const confirmItem = items.find((i) => i.id === confirmId) ?? null;
   const [name, setName] = useState('');
   const pick = useRef(createFileInputController()).current;
   const shown = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
@@ -154,16 +156,6 @@ export function LibraryTab({ items, actions }: { items: LibItem[]; actions: Libr
             <div className="library-item" title="Click to insert" onClick={() => actions.insertLibrary(it)}>
               <Thumb items={it.elements} />
               <Button className="del" aria-label={`Delete ${it.name}`} title="Delete from library" onClick={(e) => { e.stopPropagation(); setConfirmId(it.id); }}>{Icons.trash}</Button>
-              {confirmId === it.id && (
-                <div className="lib-confirm" role="alertdialog" aria-label={`Delete ${it.name}?`} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') setConfirmId(null); }}>
-                  <b>Delete this item?</b>
-                  <small>This can’t be undone.</small>
-                  <div>
-                    <Button className="btn" autoFocus style={{ padding: '0 10px', height: 28 }} onClick={() => setConfirmId(null)}>Cancel</Button>
-                    <Button className="btn danger-btn" style={{ padding: '0 10px', height: 28 }} onClick={() => { actions.deleteLibrary(it.id); setConfirmId(null); }}>Delete</Button>
-                  </div>
-                </div>
-              )}
             </div>
             {editId === it.id ? (
               <Input
@@ -176,6 +168,17 @@ export function LibraryTab({ items, actions }: { items: LibItem[]; actions: Libr
           </div>
         ))}
       </div>
+      {confirmItem && (
+        <Modal title="Delete from library?" onClose={() => setConfirmId(null)} width={420}>
+          <div onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}>
+          <p className="muted" style={{ marginTop: 0 }}>“{confirmItem.name}” will be removed from your library. This can’t be undone.</p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button className="btn" autoFocus style={{ padding: '0 14px' }} onClick={() => setConfirmId(null)}>Cancel</Button>
+            <Button className="btn danger-btn" style={{ padding: '0 14px' }} onClick={() => { actions.deleteLibrary(confirmItem.id); setConfirmId(null); }}>Delete</Button>
+          </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
