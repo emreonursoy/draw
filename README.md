@@ -50,6 +50,7 @@ Press `?` inside the app to see every keyboard shortcut.
 - `.draw` files for saving and reopening scenes
 - Compatible `.json` import and export for exchanging drawings with other whiteboard tools
 - Mermaid to diagram: flowcharts and sequence diagrams
+- **Markdown:** import `.md` files (headings, paragraphs, lists, task lists, quotes, tables, code blocks, rules and ```mermaid blocks become canvas elements) and export the scene or selection as `.md`, with diagrams written back as Mermaid
 - Personal library with search, rename and import/export
 - Image import quality setting: original, high (max 4K) or compressed (max 1600px)
 
@@ -81,6 +82,7 @@ src/
     projects.ts   localStorage project store
     interchange.ts  Compatible JSON import/export
     mermaid.ts    Mermaid parser and layout
+    markdown.ts   Markdown import (to elements) and export
     share.ts      Compressed share-link encoding
 ```
 

@@ -13,6 +13,7 @@ import { clamp, dist, download, rotatePt, toast, uid } from '@/lib/utils';
 import { createProject, deleteProject, emptyData, ensureCurrent, getProject, listProjects, saveProject, setCurrentId, type ProjectData } from '@/lib/projects';
 import { exportInterchange, importInterchange, isInterchangeData } from '@/lib/interchange';
 import { ProjectsDialog } from './Projects';
+import { parseMarkdown, toMarkdown } from '@/lib/markdown';
 import { processImage } from '@/lib/image';
 import { decodeScene, encodeScene } from '@/lib/share';
 import { MermaidDialog } from './MermaidDialog';
@@ -419,6 +420,10 @@ export default function Editor() {
     const a = A();
     download(new Blob([JSON.stringify(exportInterchange(E(), a.viewBg, a.grid), null, 2)], { type: 'application/json' }), `${fileBase()}.json`);
   };
+  const exportMarkdownFile = () => {
+    const els = sel().length ? sel() : E();
+    download(new Blob([toMarkdown(els, A().projectName)], { type: 'text/markdown' }), `${fileBase()}.md`);
+  };
   const snapshot = (): ProjectData => {
     const a = A();
     return { elements: E(), viewBg: a.viewBg, grid: a.grid, scrollX: a.scrollX, scrollY: a.scrollY, zoom: a.zoom };
@@ -448,6 +453,15 @@ export default function Editor() {
   /** Import a .draw or compatible .json file as a new project */
   const openFile = async (file: File) => {
     if (file.type.startsWith('image/')) return insertImageFile(file);
+    if (/\.(md|markdown|mdx|txt)$/i.test(file.name) || file.type === 'text/markdown') {
+      const els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE });
+      if (!els.length) return toast('This Markdown file is empty.');
+      finishMulti(true, true);
+      saveNow();
+      loadProject(createProject(file.name.replace(/\.(md|markdown|mdx|txt)$/i, '') || 'Markdown', { ...emptyData(), elements: els }));
+      setTimeout(() => zoomToElements(E()), 0);
+      return;
+    }
     try {
       const data = JSON.parse(await file.text());
       let d: ProjectData;
@@ -464,7 +478,7 @@ export default function Editor() {
       saveNow();
       loadProject(createProject(file.name.replace(/\.(draw|json)$/i, '') || 'Imported', d));
       setTimeout(() => zoomToElements(E()), 0);
-    } catch { toast('Could not read this file. Expected a .draw or .json file.'); }
+    } catch { toast('Could not read this file. Expected a .draw, .json or .md file.'); }
   };
   const clearCanvas = () => {
     if (E().length && !A().confirmClear) return setApp({ confirmClear: true });
@@ -1239,7 +1253,7 @@ export default function Editor() {
   const actions = {
     setApp, setTool, applyStyle, undo, redo, canUndo, canRedo, duplicate, deleteSelected, layer, group, ungroup, toggleLock,
     align, distribute, flip, zoomAt, zoomToElements: () => zoomToElements(E(), 1), resetZoom: () => setApp({ zoom: 1 }),
-    saveFile, exportJsonFile, switchProject, newProject, removeProject, saveNow, refreshName, openFile: () => fileRef.current?.click(), clearCanvas, copyStyle, pasteStyle, addToLibrary, selectAll,
+    saveFile, exportJsonFile, exportMarkdownFile, switchProject, newProject, removeProject, saveNow, refreshName, openFile: () => fileRef.current?.click(), clearCanvas, copyStyle, pasteStyle, addToLibrary, selectAll,
     copy: () => copySelected(), cut: async () => { await copySelected(); deleteSelected(); },
     paste: async () => {
       try { const t = await navigator.clipboard.readText(); try { const d = JSON.parse(t); if (d?.type === 'draw/clipboard') return pasteElements(d.elements); } catch {} if (t) return insertText(t); } catch {}

@@ -282,7 +282,7 @@ export function normalizeImported(raw: any, defaults: Style): DrawElement | null
     fontSize: n(raw.fontSize, 20),
     fontFamily: [1, 2, 3].includes(raw.fontFamily) ? raw.fontFamily : 1,
     textAlign: ['left', 'center', 'right'].includes(raw.textAlign) ? raw.textAlign : 'left',
-    arrowType: raw.elbowed ? 'elbow' : raw.roundness ? 'round' : 'sharp',
+    arrowType: ['sharp', 'round', 'elbow'].includes(raw.arrowType) ? raw.arrowType : raw.elbowed ? 'elbow' : raw.roundness ? 'round' : 'sharp',
     startArrowhead: raw.startArrowhead ?? null,
     endArrowhead: raw.type === 'arrow' ? (raw.endArrowhead === undefined ? 'arrow' : raw.endArrowhead) : null,
     dataURL: raw.dataURL,

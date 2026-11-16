@@ -13,6 +13,7 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
     import: actions.openFile,
     save: actions.saveFile,
     json: actions.exportJsonFile,
+    markdown: actions.exportMarkdownFile,
     export: () => actions.setApp({ exportOpen: true }),
     copypng: actions.copyPNG,
     reset: actions.clearCanvas,
@@ -40,9 +41,10 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
         <MenuTrigger className="icon-btn" aria-label="Main menu">{Icons.menu}</MenuTrigger>
         <MenuContent className="menu" sideOffset={8} align="start">
           {it('projects', Icons.library, 'Projects…')}
-          {it('import', Icons.open, 'Import file…', 'mod+o')}
+          {it('import', Icons.open, 'Import file (.draw, .json, .md)…', 'mod+o')}
           {it('save', Icons.save, 'Save to file (.draw)', 'mod+s')}
           {it('json', Icons.save, 'Export as compatible .json')}
+          {it('markdown', Icons.save, 'Export as Markdown (.md)')}
           {it('export', Icons.export, 'Export image / PDF…', 'mod+shift+e')}
           {it('copypng', Icons.copy, 'Copy to clipboard as PNG', 'alt+shift+c')}
           {it('reset', Icons.clear, 'Reset the canvas')}
