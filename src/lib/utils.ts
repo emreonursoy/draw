@@ -47,3 +47,6 @@ export function readFileAsDataURL(file: Blob): Promise<string> {
 }
 
 export const toast = (msg: string) => { sdkToast(msg); };
+
+/** One wording for every "browser storage is full" failure. */
+export const warnStorage = (what: string) => toast(`Not enough browser storage to ${what}. Delete projects or export some first.`);

@@ -258,44 +258,71 @@ export function groupSelect(els: DrawElement[], el: DrawElement): string[] {
 const MAX_TEXT = 200_000;
 const MAX_POINTS = 50_000;
 
+const COLOR_RE = /^(#[0-9a-f]{3,8}|transparent|[a-z]{3,20}|(?:rgb|hsl)a?\([0-9a-z.,%\s/-]{3,60}\))$/i;
+const HEADS = ['arrow', 'bar', 'dot', 'triangle'];
+const finite = (v: any, d: number, lo = -1e9, hi = 1e9) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+const color = (v: any, d: string) => (typeof v === 'string' && COLOR_RE.test(v.trim()) ? v.trim() : d);
+const sid = (v: any): string | null => (typeof v === 'string' && v.length > 0 && v.length <= 64 ? v : null);
+
+/**
+ * Turns untrusted data (saved projects, shared links, imported files) into a well-formed element:
+ * every field is type-checked, clamped or defaulted, and anything unusable is dropped, so a malformed
+ * scene can never crash rendering or brick startup.
+ */
 export function normalizeImported(raw: any, defaults: Style): DrawElement | null {
+  try {
+    return normalizeUnsafe(raw, defaults);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeUnsafe(raw: any, defaults: Style): DrawElement | null {
   if (!raw || typeof raw !== 'object' || raw.isDeleted) return null;
   const types = ['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame', 'comment', 'markdown'];
   if (!types.includes(raw.type)) return null;
-  const el = newElement(raw.type, raw.x ?? 0, raw.y ?? 0, defaults);
-  const n = (v: any, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
+  const el = newElement(raw.type, finite(raw.x, 0), finite(raw.y, 0), defaults);
+  const linear = raw.type === 'arrow' || raw.type === 'line' || raw.type === 'freedraw';
+  let points: Pt[] = el.points;
+  if (linear && Array.isArray(raw.points)) {
+    points = raw.points
+      .slice(0, MAX_POINTS)
+      .filter((p: any) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+      .map((p: any) => [finite(p[0], 0), finite(p[1], 0)] as Pt);
+    if (!points.length) points = [[0, 0]];
+  }
   const out: DrawElement = {
     ...el,
-    id: typeof raw.id === 'string' ? raw.id : el.id,
-    width: n(raw.width, 0),
-    height: n(raw.height, 0),
-    angle: n(raw.angle, 0),
-    seed: n(raw.seed, el.seed),
-    strokeColor: raw.strokeColor ?? defaults.strokeColor,
-    backgroundColor: raw.backgroundColor ?? 'transparent',
+    id: sid(raw.id) ?? el.id,
+    width: finite(raw.width, 0, 0, 1e7),
+    height: finite(raw.height, 0, 0, 1e7),
+    angle: finite(raw.angle, 0, -100, 100),
+    seed: finite(raw.seed, el.seed, 0, 2 ** 31),
+    strokeColor: color(raw.strokeColor, defaults.strokeColor),
+    backgroundColor: color(raw.backgroundColor, 'transparent'),
     fillStyle: ['hachure', 'cross-hatch', 'solid', 'zigzag'].includes(raw.fillStyle) ? raw.fillStyle : 'hachure',
-    strokeWidth: n(raw.strokeWidth, 2),
+    strokeWidth: finite(raw.strokeWidth, 2, 0.5, 32),
     strokeStyle: ['solid', 'dashed', 'dotted'].includes(raw.strokeStyle) ? raw.strokeStyle : 'solid',
-    roughness: n(raw.roughness, 1),
-    opacity: n(raw.opacity, 100),
+    roughness: finite(raw.roughness, 1, 0, 2),
+    opacity: finite(raw.opacity, 100, 0, 100),
     roundness: typeof raw.roundness === 'boolean' ? raw.roundness : !!raw.roundness,
-    groupIds: Array.isArray(raw.groupIds) ? raw.groupIds : [],
+    groupIds: Array.isArray(raw.groupIds) ? raw.groupIds.map(sid).filter((g: string | null): g is string => !!g).slice(0, 50) : [],
     locked: !!raw.locked,
-    points: Array.isArray(raw.points) ? raw.points.slice(0, MAX_POINTS) : el.points,
+    points,
     text: (typeof raw.text === 'string' ? raw.text : typeof raw.name === 'string' ? raw.name : '').slice(0, MAX_TEXT),
     thread: Array.isArray(raw.thread)
-      ? raw.thread.slice(0, 500).filter((c: any) => c && typeof c.text === 'string').map((c: any) => ({ text: c.text.slice(0, 5000), at: typeof c.at === 'number' ? c.at : 0 }))
+      ? raw.thread.slice(0, 500).filter((c: any) => c && typeof c.text === 'string').map((c: any) => ({ text: c.text.slice(0, 5000), at: finite(c.at, 0, 0, 1e15) }))
       : undefined,
     resolved: !!raw.resolved,
-    fontSize: n(raw.fontSize, 20),
+    fontSize: finite(raw.fontSize, 20, 4, 400),
     fontFamily: [1, 2, 3].includes(raw.fontFamily) ? raw.fontFamily : 1,
     textAlign: ['left', 'center', 'right'].includes(raw.textAlign) ? raw.textAlign : 'left',
     arrowType: ['sharp', 'round', 'elbow'].includes(raw.arrowType) ? raw.arrowType : raw.elbowed ? 'elbow' : raw.roundness ? 'round' : 'sharp',
-    startArrowhead: raw.startArrowhead ?? null,
-    endArrowhead: raw.type === 'arrow' ? (raw.endArrowhead === undefined ? 'arrow' : raw.endArrowhead) : null,
+    startArrowhead: HEADS.includes(raw.startArrowhead) ? raw.startArrowhead : null,
+    endArrowhead: raw.type === 'arrow' ? (raw.endArrowhead === undefined ? 'arrow' : HEADS.includes(raw.endArrowhead) ? raw.endArrowhead : null) : null,
     dataURL: typeof raw.dataURL === 'string' && /^data:image\//i.test(raw.dataURL) ? raw.dataURL : undefined,
-    startBinding: raw.startBinding?.elementId ?? (typeof raw.startBinding === 'string' ? raw.startBinding : null),
-    endBinding: raw.endBinding?.elementId ?? (typeof raw.endBinding === 'string' ? raw.endBinding : null),
+    startBinding: sid(raw.startBinding?.elementId) ?? sid(raw.startBinding),
+    endBinding: sid(raw.endBinding?.elementId) ?? sid(raw.endBinding),
   };
   if (out.type === 'image' && !out.dataURL) return null;
   return out.type === 'text' ? fitText(out) : out.type === 'markdown' ? fitMarkdown(out) : out;

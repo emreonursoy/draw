@@ -9,8 +9,8 @@ import {
 } from '@/lib/element';
 import { renderScene, DARK_FILTER, exportCanvas } from '@/lib/render';
 import { getSelBox, hitHandle, renderOverlay, type SelBox } from '@/lib/overlay';
-import { clamp, dist, download, rotatePt, toast, uid } from '@/lib/utils';
-import { createProject, deleteProject, emptyData, ensureCurrent, getProject, listProjects, saveProject, setCurrentId, type ProjectData } from '@/lib/projects';
+import { clamp, dist, download, rotatePt, toast, uid, warnStorage } from '@/lib/utils';
+import { createProject, deleteProject, emptyData, ensureCurrent, getProject, listProjects, migrateLegacy, saveProject, setCurrentId, type ProjectData } from '@/lib/projects';
 import { exportInterchange, importInterchange, isInterchangeData } from '@/lib/interchange';
 import { ProjectsDialog } from './Projects';
 import { parseMarkdown, toMarkdown } from '@/lib/markdown';
@@ -73,7 +73,7 @@ export default function Editor() {
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
     laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
-    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, shared: null as any, saveT: 0, projectId: '' as string,
+    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, fileProjectId: '' as string, shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -348,31 +348,35 @@ export default function Editor() {
     const s = misc.current.shared;
     if (!s) return;
     const id = createProject('Shared drawing copy', { ...emptyData(), elements: s.elements, viewBg: s.viewBg });
-    if (!id) return toast('Not enough browser storage to save a copy. Delete projects or export some first.');
+    if (!id) return warnStorage('save a copy');
     loadProject(id); // also leaves the shared view and clears the link
     setApp({ tool: 'selection' });
     setTimeout(() => zoomToElements(E()), 0);
   };
+  /** Autosaves into the linked file, but only while the project it was linked from is the open one. */
   const writeLinked = async () => {
     const h = misc.current.fileHandle;
-    if (!h) return;
+    if (!h || misc.current.fileProjectId !== misc.current.projectId) return;
     try { const w = await h.createWritable(); await w.write(JSON.stringify(drawFileData(), null, 2)); await w.close(); } catch {}
   };
+  const linkFile = (h: any) => { misc.current.fileHandle = h; misc.current.fileProjectId = misc.current.projectId; setApp({ fileLink: h.name }); };
+  const unlinkFile = () => { misc.current.fileHandle = null; misc.current.fileProjectId = ''; setApp({ fileLink: null }); };
   const linkSaveFile = async () => {
     try {
       const h = await (window as any).showSaveFilePicker({ suggestedName: `${fileBase()}.draw`, types: [{ description: 'Drawing', accept: { 'application/json': ['.draw', '.json'] } }] });
-      misc.current.fileHandle = h; setApp({ fileLink: h.name }); writeLinked();
+      linkFile(h);
+      writeLinked();
     } catch {}
   };
   const linkOpenFile = async () => {
     try {
       const [h] = await (window as any).showOpenFilePicker({ types: [{ description: 'Drawing', accept: { 'application/json': ['.draw', '.json'] } }] });
-      const f: File = await h.getFile();
-      await openFile(f);
-      misc.current.fileHandle = h; setApp({ fileLink: h.name });
+      const parsed = await parseProjectFile(await h.getFile());
+      if (!parsed) return;
+      // link only once the file has really been opened as the current project
+      openAsProject(parsed.name, parsed.data, () => linkFile(h));
     } catch {}
   };
-  const unlinkFile = () => { misc.current.fileHandle = null; setApp({ fileLink: null }); };
 
   /* ---------- clipboard ---------- */
   const serialize = (els: DrawElement[]) => JSON.stringify({ type: 'draw/clipboard', elements: els });
@@ -432,7 +436,7 @@ export default function Editor() {
     return { elements: E(), viewBg: a.viewBg, grid: a.grid, scrollX: a.scrollX, scrollY: a.scrollY, zoom: a.zoom };
   };
   /** Saves the open project. Returns false when it could not be stored (so callers can avoid discarding it). */
-  const saveNow = (force = false): boolean => {
+  const saveNow = (force = false, quiet = false): boolean => {
     if (!misc.current.projectId) return true;
     // after a failed write, autosave only retries every 10 s instead of re-serialising the scene on every tick
     // (explicit saves, e.g. before leaving the project, always try again)
@@ -443,19 +447,21 @@ export default function Editor() {
     }
     if (saveProject(misc.current.projectId, snapshot())) { misc.current.saveWarned = false; return true; }
     misc.current.lastFail = Date.now();
-    if (!misc.current.saveWarned) { misc.current.saveWarned = true; toast('Browser storage is full, so this project is not being saved. Export it as a file or delete other projects.'); }
+    if (!misc.current.saveWarned && !quiet) toast('Browser storage is full, so this project is not being saved. Export it as a file or delete other projects.');
+    misc.current.saveWarned = true;
     return false;
   };
   /** Runs `action` (which replaces the open scene) only once the current project is safely saved, or the user agrees to discard it. */
   const leaveProject = (action: () => void) => {
     finishMulti(true, true);
-    if (saveNow(true)) return action();
+    if (saveNow(true, true)) return action(); // the prompt below is the message, so no extra toast
     misc.current.pendingLeave = action;
     setApp({ confirmDiscard: true });
   };
   const loadProject = (id: string) => {
     const d = getProject(id) || emptyData();
     const els = ((d.elements || []) as any[]).map((r) => normalizeImported(r, DEFAULT_STYLE)).filter(Boolean) as DrawElement[];
+    if (misc.current.fileHandle && misc.current.fileProjectId !== id) unlinkFile();
     misc.current.projectId = id;
     if (misc.current.shared) { misc.current.shared = null; if (location.hash) history.replaceState(null, '', location.pathname); }
     setCurrentId(id);
@@ -466,7 +472,7 @@ export default function Editor() {
   const switchProject = (id: string) => leaveProject(() => loadProject(id));
   const newProject = (name: string) => leaveProject(() => {
     const id = createProject(name);
-    if (!id) return toast('Not enough browser storage to create a project. Delete projects or export some first.');
+    if (!id) return warnStorage('create a project');
     loadProject(id);
   });
   const removeProject = (id: string) => {
@@ -479,26 +485,26 @@ export default function Editor() {
     }
   };
   const refreshName = () => setApp({ projectName: listProjects().find((p) => p.id === misc.current.projectId)?.name ?? 'Untitled' });
-  /** Creates a project from imported data and opens it; reports when browser storage can't hold it. */
-  const openAsProject = (name: string, data: ProjectData) => leaveProject(() => {
+  /** Creates a project from imported data and opens it; `onOpened` runs once it is open (not if the user backs out). */
+  const openAsProject = (name: string, data: ProjectData, onOpened?: () => void) => leaveProject(() => {
     const id = createProject(name, data);
-    if (!id) return void toast('Not enough browser storage to open this file as a project. Delete projects or export some first.');
+    if (!id) return void warnStorage('open this file as a project');
     loadProject(id);
+    onOpened?.();
     setTimeout(() => zoomToElements(E()), 0);
   });
-  /** Import a .draw, compatible .json or .md file as a new project (images go on the canvas) */
-  const openFile = async (file: File) => {
-    if (file.type.startsWith('image/')) return insertImageFile(file); // enforces its own size limit
-    if (file.size > MAX_IMPORT_BYTES) return toast('That file is too large (limit 25 MB).');
+  /** Reads a .draw, compatible .json or .md file into project data (null + a message when unusable). */
+  const parseProjectFile = async (file: File): Promise<{ name: string; data: ProjectData } | null> => {
+    if (file.size > MAX_IMPORT_BYTES) { toast('That file is too large (limit 25 MB).'); return null; }
     if (/\.(md|markdown|mdx|txt)$/i.test(file.name) || file.type === 'text/markdown') {
       let els: DrawElement[];
-      try { els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE }); } catch { return toast('Could not read this Markdown file.'); }
-      if (!els.length) return toast('This Markdown file is empty.');
-      return openAsProject(file.name.replace(/\.(md|markdown|mdx|txt)$/i, '') || 'Markdown', { ...emptyData(), elements: els });
+      try { els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE }); } catch { toast('Could not read this Markdown file.'); return null; }
+      if (!els.length) { toast('This Markdown file is empty.'); return null; }
+      return { name: file.name.replace(/\.(md|markdown|mdx|txt)$/i, '') || 'Markdown', data: { ...emptyData(), elements: els } };
     }
-    let d: ProjectData;
     try {
       const data = JSON.parse(await file.text());
+      let d: ProjectData;
       if (isInterchangeData(data)) {
         const r = importInterchange(data);
         d = { ...emptyData(), elements: r.elements, viewBg: r.viewBg, grid: r.grid };
@@ -508,8 +514,14 @@ export default function Editor() {
         const els = raw.map((r) => normalizeImported(r, DEFAULT_STYLE)).filter(Boolean) as DrawElement[];
         d = { ...emptyData(), elements: els, viewBg: data?.appState?.viewBackgroundColor || '#ffffff', grid: !!data?.appState?.gridSize };
       }
-    } catch { return toast('Could not read this file. Expected a .draw, .json or .md file.'); }
-    openAsProject(file.name.replace(/\.(draw|json)$/i, '') || 'Imported', d);
+      return { name: file.name.replace(/\.(draw|json)$/i, '') || 'Imported', data: d };
+    } catch { toast('Could not read this file. Expected a .draw, .json or .md file.'); return null; }
+  };
+  /** Import a .draw, compatible .json or .md file as a new project (images go on the canvas) */
+  const openFile = async (file: File) => {
+    if (file.type.startsWith('image/')) return insertImageFile(file); // enforces its own size limit
+    const parsed = await parseProjectFile(file);
+    if (parsed) openAsProject(parsed.name, parsed.data);
   };
   const clearCanvas = () => {
     if (E().length && !A().confirmClear) return setApp({ confirmClear: true });
@@ -1122,7 +1134,9 @@ export default function Editor() {
   useEffect(() => {
     // load
     try {
+      const legacy = migrateLegacy();
       loadProject(ensureCurrent());
+      if (legacy === 'failed') toast('A drawing saved by an older version could not be moved because browser storage is full. Free some space and reload to recover it.');
       st.current.app = { ...st.current.app, theme: localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light' };
       const lib = localStorage.getItem(LIBKEY);
       if (lib) {
@@ -1151,23 +1165,31 @@ export default function Editor() {
     // Web-font faces (latin-ext, cyrillic, ...) load lazily on first use; re-measure text and redraw whenever one arrives.
     const refit = () => {
       clearMarkdownCache();
-      // Only objects whose measured size changed are replaced, and history snapshots get the same treatment so undo
-      // doesn't bring back sizes measured with the fallback font.
+      // History snapshots share element objects, so each element is re-measured once (memo) and only objects whose
+      // size actually changed are replaced. Snapshots get the same treatment so undo doesn't bring back sizes
+      // measured with the fallback font.
+      const memo = new Map<DrawElement, DrawElement>();
+      const refitOne = (el: DrawElement): DrawElement => {
+        if (el.type !== 'text' && el.type !== 'markdown') return el;
+        let n = memo.get(el);
+        if (!n) {
+          const m = el.type === 'text' ? fitText(el) : fitMarkdown(el);
+          n = m.width === el.width && m.height === el.height ? el : m;
+          memo.set(el, n);
+        }
+        return n;
+      };
       const fix = (list: DrawElement[]) => {
-        let changed = false;
-        const out = list.map((el) => {
-          if (el.type !== 'text' && el.type !== 'markdown') return el;
-          const n = el.type === 'text' ? fitText(el) : fitMarkdown(el);
-          if (n.width === el.width && n.height === el.height) return el;
-          changed = true;
-          return n;
-        });
-        return changed ? out : list;
+        const out = list.map(refitOne);
+        return out.some((el, i) => el !== list[i]) ? out : list;
       };
       const h = st.current.hist;
       const cur = st.current.elements;
       const next = fix(cur);
-      h.stack = h.stack.map((s) => (s.elements === cur ? { ...s, elements: next } : { ...s, elements: fix(s.elements) }));
+      h.stack = h.stack.map((snap) => {
+        const els = snap.elements === cur ? next : fix(snap.elements);
+        return els === snap.elements ? snap : { ...snap, elements: els };
+      });
       st.current.elements = next;
       rerender();
     };

@@ -28,8 +28,8 @@ export function getProject(id: string): ProjectData | null {
 export function saveProject(id: string, data: ProjectData): boolean {
   if (!ls.set(pk(id), JSON.stringify(data))) return false; // nothing changed; leave the index alone
   const list = listProjects();
-  const cur = list.find((p) => p.id === id);
-  if (cur) writeIndex([{ ...cur, updatedAt: Date.now() }, ...list.filter((p) => p.id !== id)]);
+  const cur = list.find((p) => p.id === id) ?? { id, name: 'Untitled', updatedAt: 0 }; // re-index an unlisted project
+  writeIndex([{ ...cur, updatedAt: Date.now() }, ...list.filter((p) => p.id !== id)]);
   return true;
 }
 /** Creates a project; returns its id, or null when browser storage rejected the data. */
@@ -59,20 +59,28 @@ export function deleteProject(id: string) {
 export const getCurrentId = () => ls.get(CUR);
 export const setCurrentId = (id: string) => ls.set(CUR, id);
 
-/** Returns a valid current project id, creating/migrating as needed. */
+/**
+ * Moves a scene saved by an early version (a single draw:scene:v1 key) into a project. The legacy key is only
+ * deleted once the project is stored; 'failed' means it is still waiting (no space), so callers can tell the user.
+ */
+export function migrateLegacy(): 'none' | 'migrated' | 'failed' {
+  const old = ls.get(OLD);
+  if (!old) return 'none';
+  let data: ProjectData;
+  try { data = { ...emptyData(), ...JSON.parse(old) }; } catch { ls.del(OLD); return 'none'; } // unreadable: nothing to recover
+  const id = createProject(listProjects().length ? 'Recovered drawing' : 'Untitled', data);
+  if (!id) return 'failed';
+  ls.del(OLD);
+  if (!getCurrentId()) setCurrentId(id);
+  return 'migrated';
+}
+
+/** Returns a valid current project id, creating it if needed. */
 export function ensureCurrent(): string {
   const list = listProjects();
   let id = getCurrentId();
   if (id && list.some((p) => p.id === id)) return id;
-  if (list.length) id = list[0].id;
-  else {
-    let data = emptyData();
-    const old = ls.get(OLD);
-    if (old) { try { data = { ...data, ...JSON.parse(old) }; } catch {} }
-    const migrated = createProject('Untitled', data);
-    if (migrated && old) ls.del(OLD); // keep the legacy scene until the new project is safely stored
-    id = migrated ?? createProject('Untitled') ?? uid();
-  }
+  id = list.length ? list[0].id : createProject('Untitled') ?? uid(); // saveProject re-indexes an unlisted id
   setCurrentId(id);
   return id;
 }
