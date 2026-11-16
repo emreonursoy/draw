@@ -260,3 +260,4 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .embed-btn { pointer-events: auto; border: 0; background: transparent; color: #495057; font: 500 12px Inter, sans-serif; padding: 2px 8px; border-radius: 6px; }
 .embed-btn:hover { background: rgba(0,0,0,.08); }
 .field-error { color: var(--danger); font-size: 13px; margin: 6px 0 0; }
+.embed-confirm-url { font: 12px ui-monospace, Menlo, monospace; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--fg) 6%, var(--bg-ui)); word-break: break-all; margin: 0 0 14px; user-select: text; }

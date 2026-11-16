@@ -51,3 +51,45 @@ describe('hostOf', () => {
     expect(hostOf('garbage')).toBe('garbage');
   });
 });
+
+import { blockedReason, getTrustedHosts, isPrivateHost, isTrustedHost, MAX_LOADED_EMBEDS, trustHost } from '../src/lib/embed';
+
+describe('embed safety policy', () => {
+  it('detects local and private hosts', () => {
+    for (const h of ['localhost', 'app.localhost', '127.0.0.1', '10.1.2.3', '192.168.0.5', '172.16.0.1', '172.31.9.9', '169.254.169.254', '100.64.0.1', '0.0.0.0', '[::1]', '::1', 'fd12::1', 'fe80::1', '::ffff:127.0.0.1', 'printer.local', 'db.internal', 'intranet']) {
+      expect(isPrivateHost(h), h).toBe(true);
+    }
+    for (const h of ['example.com', 'www.youtube.com', '8.8.8.8', '172.32.0.1', '172.15.0.1', '2606:4700::1111']) {
+      expect(isPrivateHost(h), h).toBe(false);
+    }
+  });
+
+  it('blocks the app\'s own origin', () => {
+    const p = { origin: 'https://draw.example.com', allowLocal: false };
+    expect(blockedReason('https://draw.example.com/anything', p)).toMatch(/this app/);
+    expect(blockedReason('https://other.example.com/', p)).toBeNull();
+  });
+
+  it('blocks private hosts unless local development is allowed', () => {
+    expect(blockedReason('http://192.168.1.1/admin', { allowLocal: false })).toMatch(/private network/);
+    expect(blockedReason('http://localhost:3000/', { allowLocal: false })).not.toBeNull();
+    expect(blockedReason('http://localhost:3000/', { allowLocal: true })).toBeNull();
+  });
+
+  it('rejects unparsable addresses', () => {
+    expect(blockedReason('not a url', {})).not.toBeNull();
+  });
+
+  it('remembers trusted hosts', () => {
+    localStorage.clear();
+    expect(isTrustedHost('example.com')).toBe(false);
+    trustHost('Example.com');
+    expect(isTrustedHost('example.com')).toBe(true);
+    trustHost('example.com');
+    expect(getTrustedHosts()).toEqual(['example.com']);
+    localStorage.setItem('draw:trustedHosts', '{"bad":1}');
+    expect(getTrustedHosts()).toEqual([]);
+  });
+
+  it('has a sensible cap', () => { expect(MAX_LOADED_EMBEDS).toBeGreaterThan(0); });
+});

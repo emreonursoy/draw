@@ -20,6 +20,8 @@ import { recognizeShape } from '@/lib/shape';
 import { regionAt } from '@/lib/fill';
 import EmbedLayer from './EmbedLayer';
 import { EmbedDialog } from './EmbedDialog';
+import { EmbedConfirm } from './EmbedConfirm';
+import { blockedReason, hostOf, isTrustedHost, MAX_LOADED_EMBEDS, trustHost } from '@/lib/embed';
 import { decodeScene, encodeScene, MAX_LINK_CHARS } from '@/lib/share';
 import { MermaidDialog } from './MermaidDialog';
 import Presenter from './Presenter';
@@ -59,7 +61,7 @@ const TOOL_KEYS: Record<string, ToolType> = {
 const initialApp = (): AppState => ({
   tool: 'selection', toolLocked: false, scrollX: 0, scrollY: 0, zoom: 1, selectedIds: {}, theme: 'light', viewBg: '#ffffff',
   grid: false, zen: false, style: { ...DEFAULT_STYLE }, editing: null, width: 1200, height: 800, showLibrary: false,
-  exportOpen: false, helpOpen: false, menuOpen: false, contextMenu: null, projectsOpen: false, projectName: 'Untitled', confirmClear: false, confirmDiscard: false, embedDialog: null, loadedEmbeds: {}, activeEmbed: null, shapeAssist: true,
+  exportOpen: false, helpOpen: false, menuOpen: false, contextMenu: null, projectsOpen: false, projectName: 'Untitled', confirmClear: false, confirmDiscard: false, embedDialog: null, embedConfirm: null, loadedEmbeds: {}, activeEmbed: null, shapeAssist: true,
   presenting: false, viewOnly: false, sharedView: false, activeComment: null, mermaidOpen: false, imageMode: 'high', fileLink: null,
 });
 
@@ -886,6 +888,19 @@ export default function Editor() {
     setApp({ selectedIds: { [el.id]: true }, tool: 'selection' });
     commit();
   };
+  /** Loads an embed after checking the policy, the limit and (unless the host is trusted) asking the user. */
+  const requestLoadEmbed = (id: string) => {
+    const a = A();
+    const el = E().find((x) => x.id === id);
+    if (!el || el.type !== 'embed' || !el.url) return;
+    const why = blockedReason(el.url);
+    if (why) return toast(why);
+    if (a.loadedEmbeds[id]) return setApp({ activeEmbed: id });
+    if (Object.keys(a.loadedEmbeds).length >= MAX_LOADED_EMBEDS) return toast(`Unload another page first: at most ${MAX_LOADED_EMBEDS} pages can be loaded at once.`);
+    if (!a.sharedView && isTrustedHost(hostOf(el.url))) return doLoadEmbed(id);
+    setApp({ embedConfirm: { id } });
+  };
+  const doLoadEmbed = (id: string) => setApp({ loadedEmbeds: { ...A().loadedEmbeds, [id]: true }, activeEmbed: id, embedConfirm: null });
   const editEmbed = () => { const s = sel().find((x) => x.type === 'embed'); if (s) setApp({ embedDialog: { id: s.id } }); };
   const unloadEmbed = (id: string) => {
     const { [id]: _gone, ...rest } = A().loadedEmbeds;
@@ -1243,7 +1258,7 @@ export default function Editor() {
     const p = toScene(e);
     const hit = topHit(p);
     if (hit) {
-      if (hit.type === 'embed') { setApp({ loadedEmbeds: { ...a.loadedEmbeds, [hit.id]: true }, activeEmbed: hit.id }); return; }
+      if (hit.type === 'embed') { requestLoadEmbed(hit.id); return; }
       if (hit.type === 'text' || hit.type === 'markdown' || canHaveLabel(hit)) startEdit(hit, false);
       return;
     }
@@ -1377,7 +1392,7 @@ export default function Editor() {
         else if (e.altKey && e.key.toLowerCase() === 'p') setApp({ presenting: true });
         return;
       }
-      if (a.exportOpen || a.helpOpen || a.projectsOpen || a.confirmClear || a.confirmDiscard || a.embedDialog) return;
+      if (a.exportOpen || a.helpOpen || a.projectsOpen || a.confirmClear || a.confirmDiscard || a.embedDialog || a.embedConfirm) return;
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
       if (e.key === ' ' ) { misc.current.space = true; e.preventDefault(); if (overlayRef.current) overlayRef.current.style.cursor = 'grab'; return; }
@@ -1538,7 +1553,7 @@ export default function Editor() {
       } catch { toast('Could not read this library file.'); }
     },
     insertMermaid: (els: DrawElement[]) => addElements(els, viewCenter()),
-    copyShareLink, editCopy, linkSaveFile, linkOpenFile, unlinkFile, convertToShape, editEmbed, unloadEmbed,
+    copyShareLink, editCopy, linkSaveFile, linkOpenFile, unlinkFile, convertToShape, editEmbed, unloadEmbed, requestLoadEmbed,
     toggleShapeAssist: () => { const on = !A().shapeAssist; setApp({ shapeAssist: on }); try { localStorage.setItem('draw:shapeAssist', on ? '1' : '0'); } catch {} },
     addComment: (id: string, text: string) => { setEls(E().map((e) => (e.id === id ? { ...e, thread: [...(e.thread || []), { text, at: Date.now() }] } : e))); commit(); },
     toggleResolve: (id: string) => { setEls(E().map((e) => (e.id === id ? { ...e, resolved: !e.resolved } : e))); commit(); setApp({ activeComment: null }); },
@@ -1595,6 +1610,7 @@ export default function Editor() {
       )}
       {app.presenting && <Presenter app={app} elements={elements} onClose={() => setApp({ presenting: false })} />}
       {app.embedDialog && (() => { const cur = app.embedDialog.id ? elements.find((x) => x.id === app.embedDialog!.id) : null; return <EmbedDialog initial={cur?.url ?? ''} onSubmit={submitEmbed} onClose={() => setApp({ embedDialog: null })} />; })()}
+      {app.embedConfirm && (() => { const c = elements.find((x) => x.id === app.embedConfirm!.id); return c?.url ? <EmbedConfirm url={c.url} shared={app.sharedView} onClose={() => setApp({ embedConfirm: null })} onLoad={(remember) => { if (remember) trustHost(hostOf(c.url!)); doLoadEmbed(c.id); }} /> : null; })()}
       {app.mermaidOpen && <MermaidDialog app={app} actions={actions} onClose={() => setApp({ mermaidOpen: false })} />}
       {app.activeComment && (() => { const c = elements.find((x) => x.id === app.activeComment); return c ? <CommentPopover key={c.id} el={c} app={app} actions={actions} /> : null; })()}
       <ToastRegion className="toast-region">{() => <Toast className="toast"><ToastTitle /></Toast>}</ToastRegion>

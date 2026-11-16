@@ -1,6 +1,6 @@
 'use client';
 import type { AppState, DrawElement } from '@/lib/types';
-import { hostOf, toEmbedUrl } from '@/lib/embed';
+import { blockedReason, hostOf, toEmbedUrl } from '@/lib/embed';
 import { Button } from './ui';
 
 const HEADER = 30; // scene px, matches the card drawn on the canvas
@@ -10,7 +10,7 @@ const HEADER = 30; // scene px, matches the card drawn on the canvas
  * receives clicks while it is "active" (after a double-click), so it never gets in the way of selecting or moving it.
  */
 export default function EmbedLayer({ app, elements, actions }: { app: AppState; elements: DrawElement[]; actions: any }) {
-  const loaded = elements.filter((e) => e.type === 'embed' && e.url && app.loadedEmbeds[e.id]);
+  const loaded = elements.filter((e) => e.type === 'embed' && e.url && app.loadedEmbeds[e.id] && !blockedReason(e.url));
   if (!loaded.length) return null;
   return (
     <div className="embed-layer" aria-live="polite">
@@ -32,7 +32,7 @@ export default function EmbedLayer({ app, elements, actions }: { app: AppState; 
               sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
               referrerPolicy="no-referrer"
               loading="lazy"
-              allow="fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+              allow="fullscreen; picture-in-picture; encrypted-media"
               style={{ top: HEADER, height: el.height - HEADER, pointerEvents: active ? 'auto' : 'none' }}
             />
           </div>

@@ -73,6 +73,7 @@ export interface AppState {
   confirmClear: boolean;
   confirmDiscard: boolean;
   embedDialog: { id: string | null } | null;
+  embedConfirm: { id: string } | null;
   loadedEmbeds: Record<string, true>;
   activeEmbed: string | null;
   shapeAssist: boolean;

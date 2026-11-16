@@ -38,3 +38,65 @@ export function toEmbedUrl(url: string): string {
 export const hostOf = (url: string): string => {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
 };
+
+/* ---------- safety policy ---------- */
+
+/** Most embedded pages that may be loaded at the same time. */
+export const MAX_LOADED_EMBEDS = 5;
+
+const PRIVATE_SUFFIXES = ['.localhost', '.local', '.internal', '.lan', '.localdomain', '.home.arpa', '.intranet'];
+
+/** True for addresses that point at the user's own machine or private network. */
+export function isPrivateHost(rawHost: string): boolean {
+  const host = rawHost.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+  if (!host) return true;
+  if (host === 'localhost' || PRIVATE_SUFFIXES.some((s) => host.endsWith(s))) return true;
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+  }
+  if (host.includes(':')) {
+    // IPv6: loopback, unspecified, unique-local (fc00::/7), link-local (fe80::/10), and IPv4-mapped addresses
+    if (host === '::1' || host === '::') return true;
+    if (/^f[cd]/.test(host) || /^fe[89ab]/.test(host)) return true;
+    const mapped = /^::ffff:(?:(\d+\.\d+\.\d+\.\d+)|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/.exec(host);
+    if (mapped) return mapped[1] ? isPrivateHost(mapped[1]) : true; // hex form: treat as private to be safe
+    return false;
+  }
+  return !host.includes('.'); // single-label names only resolve on a local network
+}
+
+export interface EmbedPolicy { origin?: string; allowLocal?: boolean }
+
+/** The policy for the running app: its own origin is off limits, local addresses only while developing. */
+export const embedPolicy = (): EmbedPolicy => ({
+  origin: typeof location !== 'undefined' ? location.origin : undefined,
+  allowLocal: process.env.NODE_ENV !== 'production',
+});
+
+/** Why a (syntactically valid) URL must not be embedded, or null when it may be. */
+export function blockedReason(url: string, policy: EmbedPolicy = embedPolicy()): string | null {
+  let u: URL;
+  try { u = new URL(url); } catch { return 'That is not a valid address.'; }
+  if (policy.origin && u.origin === policy.origin) return 'That page belongs to this app itself, so it can’t be embedded.';
+  if (!policy.allowLocal && isPrivateHost(u.hostname)) return 'Pages on your own computer or private network can’t be embedded.';
+  return null;
+}
+
+/* ---------- hosts the user has chosen to trust ---------- */
+
+const TRUST_KEY = 'draw:trustedHosts';
+
+export function getTrustedHosts(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(TRUST_KEY) || '[]');
+    return Array.isArray(v) ? v.filter((h): h is string => typeof h === 'string') : [];
+  } catch { return []; }
+}
+export const isTrustedHost = (host: string) => getTrustedHosts().includes(host.toLowerCase());
+export function trustHost(host: string) {
+  const list = new Set(getTrustedHosts());
+  list.add(host.toLowerCase());
+  try { localStorage.setItem(TRUST_KEY, JSON.stringify([...list].slice(-200))); } catch { /* storage full: the user will simply be asked again */ }
+}
