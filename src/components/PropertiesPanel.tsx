@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { AppState, DrawElement, Style } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@ui-sdk/react/popover';
 import { Icons } from './icons';
-import { Button, ColorField, IconButton, OptionGroup, SelectField, SliderField, type Choice } from './ui';
+import { Button, ColorField, IconButton, OptionGroup, Scroll, SelectField, Separator, SliderField, type Choice } from './ui';
 
 const STROKES = ['#1e1e1e', '#e03131', '#2f9e44', '#1971c2', '#f08c00'];
 const BGS = ['transparent', '#ffc9c9', '#b2f2bb', '#a5d8ff', '#ffec99'];
@@ -43,7 +43,7 @@ function ColorPicker({ value, presets, onChange, transparent, label }: { value: 
     <div className="color-picker">
       <div className="prop-row">
         {presets.map((c) => sw(c))}
-        <span className="sep" />
+        <Separator orientation="vertical" className="sep" />
         <Popover>
           <PopoverTrigger className="swatch sm current" aria-label={`More ${label} colors`} style={{ background: value === 'transparent' ? undefined : value }}>
             {value === 'transparent' && <span className="slash" />}
@@ -112,6 +112,7 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
 
   return (
     <div className="panel" onPointerDown={(e) => e.stopPropagation()}>
+      <Scroll label="Properties" className="panel-scroll" contentClassName="panel-content">
       {!has('image') && <Section label="Stroke"><ColorPicker label="stroke" value={v('strokeColor')} presets={STROKES} onChange={(c) => set({ strokeColor: c })} /></Section>}
       {(shape || has('markdown') || has('bucket')) && <Section label={has('bucket') ? 'Bucket colour' : 'Background'}><ColorPicker label="background" value={v('backgroundColor')} presets={BGS} transparent onChange={(c) => set({ backgroundColor: c })} /></Section>}
       {shape && !has('bucket') && <Section label="Fill"><OptionGroup label="Fill style" value={v('fillStyle')} options={fills} onChange={(x) => set({ fillStyle: x })} /></Section>}
@@ -174,6 +175,7 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
           </Section>
         </>
       )}
+      </Scroll>
     </div>
   );
 }

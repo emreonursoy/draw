@@ -8,7 +8,7 @@ import { exportCanvas } from '@/lib/render';
 import { download, toast, warnStorage } from '@/lib/utils';
 import { Icons } from './icons';
 import { Modal } from './Modal';
-import { Button, IconButton, Input, SelectField } from './ui';
+import { Button, IconButton, Input, Scroll, SelectField } from './ui';
 
 /** Thumbnails keyed by project id and its last-saved time, so unchanged projects aren't re-rendered on every open. */
 const thumbCache = new Map<string, { at: number; url: string; count: number }>();
@@ -95,7 +95,7 @@ export function ProjectsDialog({ actions, onClose }: { actions: any; onClose: ()
         <SelectField label="Sort projects" className="w170" value={sort} onChange={(v) => setSort(v as any)} items={[{ value: 'updated', label: 'Recently updated' }, { value: 'name', label: 'Name' }]} />
       </div>
       {!shown.length && <p className="muted">No projects match.</p>}
-      <div className="proj-grid">
+      <Scroll label="Projects" className="proj-scroll" contentClassName="proj-grid">
         {shown.map((p) => (
           <div key={p.id} className={`proj-card ${p.id === cur ? 'current' : ''}`}>
             <Button className="proj-thumb" aria-label={`Open ${p.name}`} onClick={() => { actions.switchProject(p.id); onClose(); }}>
@@ -137,7 +137,7 @@ export function ProjectsDialog({ actions, onClose }: { actions: any; onClose: ()
             )}
           </div>
         ))}
-      </div>
+      </Scroll>
     </Modal>
   );
 }

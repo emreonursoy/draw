@@ -42,7 +42,9 @@ kbd { font-family: inherit; background: var(--hover); border-radius: 4px; paddin
 .zoom-pct { border: 0; background: transparent; min-width: 52px; height: 32px; border-radius: 8px; font-size: 13px; } .zoom-pct:hover { background: var(--hover); }
 .lib-btn { position: absolute; top: 14px; right: 14px; height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--bg-ui); box-shadow: var(--shadow); }
 
-.panel { position: absolute; left: 14px; top: 68px; width: 232px; max-height: calc(100vh - 150px); overflow-y: auto; background: var(--bg-ui); border-radius: 10px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.panel { position: absolute; left: 14px; top: 68px; width: 232px; background: var(--bg-ui); border-radius: 10px; box-shadow: var(--shadow); padding: 12px 4px 12px 12px; }
+.panel-scroll { max-height: calc(100vh - 150px - 24px); }
+.panel-content { display: flex; flex-direction: column; gap: 12px; padding-right: 8px; }
 .prop-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; } .prop-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .opt { min-width: 32px; height: 32px; border: 1px solid var(--border); background: var(--bg-ui); border-radius: 8px; display: grid; place-items: center; padding: 0 4px; font-size: 15px; }
 .opt:hover { background: var(--hover); } .opt.active { background: var(--active); border-color: var(--accent); color: var(--accent); } .opt.danger:hover { color: var(--danger); }
@@ -80,7 +82,7 @@ kbd { font-family: inherit; background: var(--hover); border-radius: 4px; paddin
 .help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; } .help-col h3 { margin: 0 0 8px; font-size: 14px; color: var(--accent); }
 .help-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
 
-@media (max-width: 760px) { .panel { top: auto; bottom: 64px; width: calc(100vw - 28px); max-height: 38vh; } .lib-btn { display: none; } .toolbar { left: 62px; transform: none; max-width: calc(100vw - 76px); } }
+@media (max-width: 760px) { .panel { top: auto; bottom: 64px; width: calc(100vw - 28px); max-height: 38vh; } .panel-scroll { max-height: calc(38vh - 24px); } .lib-btn { display: none; } .toolbar { left: 62px; transform: none; max-width: calc(100vw - 76px); } }
 .project-pill { position: absolute; left: 50px; top: 0; height: 40px; max-width: 160px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--bg-ui); box-shadow: var(--shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-new { display: flex; gap: 8px; margin-bottom: 12px; } .proj-new input { flex: 1; height: 38px; border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; background: var(--bg-ui); color: var(--fg); }
 .proj-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
@@ -115,7 +117,7 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .presenter-bar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: rgba(30,30,34,.9); color: #fff; padding: 6px 12px; border-radius: 10px; font-size: 13px; opacity: .25; transition: opacity .2s; cursor: default; }
 .presenter-bar:hover { opacity: 1; } .presenter-bar button { background: transparent; border: 0; color: #fff; font-size: 16px; padding: 2px 8px; border-radius: 6px; } .presenter-bar button:hover:not(:disabled) { background: rgba(255,255,255,.15); } .presenter-bar button:disabled { opacity: .3; }
 .comment-pop { position: absolute; z-index: 30; width: 280px; background: var(--bg-ui); border-radius: 12px; box-shadow: var(--shadow); padding: 10px; display: flex; flex-direction: column; gap: 8px; user-select: text; }
-.comment-head { display: flex; justify-content: space-between; align-items: center; } .comment-thread { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.comment-head { display: flex; justify-content: space-between; align-items: center; } .comment-scroll { max-height: 160px; } .comment-thread { display: flex; flex-direction: column; gap: 8px; padding-right: 6px; }
 .comment-item p { margin: 0 0 2px; white-space: pre-wrap; } .comment-item span { font-size: 11px; color: var(--muted); }
 .comment-pop textarea { width: 100%; resize: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--bg-ui); color: var(--fg); font: inherit; }
 .comment-actions { display: flex; gap: 6px; }
@@ -124,7 +126,7 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .lib-tools { display: flex; gap: 6px; margin-bottom: 8px; } .lib-tools .btn { flex: 1; height: 30px; }
 .library-card { display: flex; flex-direction: column; gap: 4px; min-width: 0; } .lib-label { border: 0; background: transparent; font-size: 12px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; color: var(--muted); } .lib-label:hover { color: var(--fg); }
 .lib-name { width: 100%; font-size: 12px; border: 1px solid var(--accent); border-radius: 6px; padding: 2px 4px; background: var(--bg-ui); color: var(--fg); }
-.proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; max-height: 52vh; overflow-y: auto; padding: 2px; }
+.proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; padding: 2px; }
 .proj-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-ui); } .proj-card.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .proj-thumb { height: 130px; border: 0; background: #f3f3f6; display: grid; place-items: center; padding: 6px; cursor: pointer; } .proj-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .proj-meta { padding: 8px 10px 2px; display: flex; flex-direction: column; gap: 2px; min-width: 0; } .proj-meta b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .proj-meta .muted { font-size: 12px; }
@@ -133,7 +135,7 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: #1b1b1f; color: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: var(--shadow); z-index: 120; max-width: 90vw; font-size: 13px; }
 
 /* Projects dialog: stable size, overlay confirmation */
-.proj-grid { flex: 1; min-height: 0; max-height: none !important; align-content: start; grid-auto-rows: max-content; }
+.proj-scroll { flex: 1; min-height: 0; } .proj-grid { align-content: start; grid-auto-rows: max-content; }
 .proj-card { position: relative; }
 .proj-confirm { position: absolute; inset: 0; z-index: 2; background: color-mix(in srgb, var(--bg-ui) 92%, transparent); backdrop-filter: blur(2px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 12px; font-size: 14px; }
 .proj-confirm small { color: var(--muted); } .proj-confirm > div { display: flex; gap: 8px; }
@@ -306,3 +308,16 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 @media (hover: none) { .library-item .del { opacity: 1; } }
 .library-item .del:hover { background: color-mix(in srgb, var(--fg) 8%, var(--bg-ui)); }
 .library-item .del:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* SDK scroll areas */
+.scroll { position: relative; min-height: 0; }
+.scroll > [data-slot="scroll-area-viewport"] { width: 100%; height: 100%; max-height: inherit; }
+.scrollbar { width: 9px; padding: 2px; opacity: 0; transition: opacity .15s; }
+.scrollbar[data-visible], .scroll:hover .scrollbar { opacity: 1; }
+.scroll-thumb { width: 100%; border-radius: 4px; background: color-mix(in srgb, var(--fg) 30%, transparent); }
+.scroll-thumb:hover { background: color-mix(in srgb, var(--fg) 50%, transparent); }
+.sidebar-scroll { flex: 1; min-height: 0; } .sidebar-scroll > [data-slot="scroll-area-viewport"] { padding-right: 6px; }
+.library.sidebar { overflow: hidden; }
+.library.sidebar > [data-slot="tabs"] { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.modal.has-scroll { overflow: hidden; }
+.modal-scroll { max-height: calc(90vh - 96px); } .modal-scroll > [data-slot="scroll-area-viewport"] { padding-right: 6px; }

@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from '@ui-sdk/react/tabs';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@ui-sdk/react/menu';
 import { Icons } from './icons';
 import { ConfirmDialog } from './ConfirmDialog';
-import { Button, Input, SelectField } from './ui';
+import { Button, Input, Scroll, SelectField } from './ui';
 
 type CommentFilter = 'all' | 'open' | 'resolved';
 
@@ -42,9 +42,11 @@ export function Sidebar({ app, elements, library, hits, actions }: { app: AppSta
           </TabsList>
           <Button className="icon-btn sm" aria-label="Close sidebar" onClick={() => actions.setApp({ showLibrary: false })}>✕</Button>
         </div>
+        <Scroll label="Sidebar content" className="sidebar-scroll">
         {!app.viewOnly && <TabsPanel value="library">{tab === 'library' && <LibraryTab items={library} actions={actions} />}</TabsPanel>}
         <TabsPanel value="search">{tab === 'search' && <SearchTab app={app} hits={hits} actions={actions} />}</TabsPanel>
         <TabsPanel value="comments">{tab === 'comments' && <CommentsTab app={app} comments={comments} filter={filter} onFilter={setFilter} actions={actions} />}</TabsPanel>
+        </Scroll>
       </Tabs>
     </aside>
   );

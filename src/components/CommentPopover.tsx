@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { AppState, DrawElement } from '@/lib/types';
-import { Button, Textarea } from './ui';
+import { Button, Scroll, Textarea } from './ui';
 
 export default function CommentPopover({ el, app, actions }: { el: DrawElement; app: AppState; actions: any }) {
   const [text, setText] = useState('');
@@ -16,12 +16,12 @@ export default function CommentPopover({ el, app, actions }: { el: DrawElement; 
         <b>{el.resolved ? 'Resolved thread' : 'Comment'}</b>
         <Button className="icon-btn sm" aria-label="Close" onClick={actions.closeComment}>✕</Button>
       </div>
-      <div className="comment-thread">
+      <Scroll label="Comments in this thread" className="comment-scroll" contentClassName="comment-thread">
         {(el.thread || []).map((c, i) => (
           <div key={i} className="comment-item"><p>{c.text}</p><span>{new Date(c.at).toLocaleString()}</span></div>
         ))}
         {!(el.thread || []).length && <p className="muted">Write the first comment.</p>}
-      </div>
+      </Scroll>
       <Textarea
         ref={ref} aria-label="Add a comment" value={text} placeholder="Add a comment…" rows={2} onValueChange={setText}
         onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); post(); } if (e.key === 'Escape') actions.closeComment(); }}

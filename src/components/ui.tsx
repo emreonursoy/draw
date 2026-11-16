@@ -7,10 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from '@ui-sdk/react/slider';
 import { Checkbox, CheckboxIndicator } from '@ui-sdk/react/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@ui-sdk/react/tooltip';
+import { Label } from '@ui-sdk/react/label';
+import { Separator } from '@ui-sdk/react/separator';
+import { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from '@ui-sdk/react/scroll-area';
 import { createFileInputController, FileInput } from '@ui-sdk/react/file-input';
 import { ColorPicker, ColorPickerArea, ColorPickerAreaThumb, ColorPickerInput, ColorPickerSlider, ColorPickerSliderThumb } from '@ui-sdk/react/color-picker';
 
-export { Button };
+export { Button, Separator };
 export { Input } from '@ui-sdk/react/input';
 export { Textarea } from '@ui-sdk/react/textarea';
 
@@ -72,12 +75,12 @@ export function SliderField({ value, onChange, min = 0, max = 100, step = 1, lab
 
 export function CheckField({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
   return (
-    <label className="check">
+    <Label className="check">
       <Checkbox checked={checked} onCheckedChange={(c: any) => onChange(c === true)} className="checkbox">
         <CheckboxIndicator aria-hidden="true">✓</CheckboxIndicator>
       </Checkbox>
       {children}
-    </label>
+    </Label>
   );
 }
 
@@ -107,5 +110,22 @@ export function ColorField({ value, onChange, label }: { value: string; onChange
       <ColorPickerSlider channel="hue" className="cp-slider"><ColorPickerSliderThumb className="cp-thumb" /></ColorPickerSlider>
       <ColorPickerInput aria-label="Hex color" className="field" />
     </ColorPicker>
+  );
+}
+
+/**
+ * A scrolling region with the SDK's styled scrollbar. Size it from the outside with CSS (`max-height` or flex);
+ * `contentClassName` styles the inner wrapper that holds the children.
+ */
+export function Scroll({ label, className, contentClassName, children }: { label: string; className?: string; contentClassName?: string; children: ReactNode }) {
+  return (
+    <ScrollArea className={`scroll ${className ?? ''}`}>
+      <ScrollAreaViewport role="region" aria-label={label}>
+        <ScrollAreaContent className={contentClassName}>{children}</ScrollAreaContent>
+      </ScrollAreaViewport>
+      <ScrollAreaScrollbar orientation="vertical" className="scrollbar">
+        <ScrollAreaThumb className="scroll-thumb" />
+      </ScrollAreaScrollbar>
+    </ScrollArea>
   );
 }
