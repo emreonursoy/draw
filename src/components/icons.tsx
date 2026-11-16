@@ -39,6 +39,7 @@ export const Icons = {
   markdown: <I><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M6 15V9l3 3 3-3v6M17 9v5M15 12l2 2 2-2" /></I>,
   comment: <I><path d="M4 5h16v11H9l-5 4z" /></I>,
   check: <I s={16}><path d="M5 12.5l4.5 4.5L19 7" /></I>,
+  more: <I><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" /></I>,
   plus: <I s={16}><path d="M12 5v14M5 12h14" /></I>,
   minus: <I s={16}><path d="M5 12h14" /></I>,
   clear: <I s={18}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></I>,

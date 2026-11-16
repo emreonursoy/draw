@@ -17,7 +17,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 kbd { font-family: inherit; background: var(--hover); border-radius: 4px; padding: 1px 6px; font-size: 12px; }
 
 .toolbar { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 2px;
-  background: var(--bg-ui); padding: 4px; border-radius: 10px; box-shadow: var(--shadow); max-width: calc(100vw - 120px); overflow-x: auto; }
+  background: var(--bg-ui); padding: 4px; border-radius: 10px; box-shadow: var(--shadow); max-width: calc(100vw - 120px); }
 .tool { position: relative; width: 36px; height: 36px; border: 0; background: transparent; border-radius: 8px; display: grid; place-items: center; flex: none; }
 .tool:hover { background: var(--hover); } .tool.active { background: var(--active); color: var(--accent); }
 .badge { position: absolute; right: 3px; bottom: 1px; font-size: 9px; color: var(--muted); }
@@ -238,3 +238,12 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .cp-thumb { position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.3); background: var(--color-picker-color); transform: translate(-50%, -50%); }
 .cp-slider .cp-thumb { top: 50%; }
 .cp .field { height: 32px; flex: none; width: 100%; font-family: ui-monospace, Menlo, monospace; }
+
+/* toolbar groups, separators and the overflow menu */
+.tool-group { display: flex; align-items: center; gap: 2px; }
+.toolbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; flex: none; }
+.tools-menu { width: 260px; max-height: calc(100vh - 90px); }
+.tools-menu .menu-item { position: relative; }
+.mi-check { width: 14px; text-align: center; color: var(--accent); font-weight: 700; }
+.tools-menu .menu-label { padding-top: 6px; }
+@media (max-width: 760px) { .toolbar { left: 62px; right: auto; transform: none; max-width: calc(100vw - 76px); } }
