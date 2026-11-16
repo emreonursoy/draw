@@ -36,6 +36,7 @@ export const Icons = {
   library: <I s={18}><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 6l4-1 3 15-4 1z" /></I>,
   edit: <I s={18}><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></I>,
   frameTool: <I><path d="M7 3v18M17 3v18M3 7h18M3 17h18" /></I>,
+  markdown: <I><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M6 15V9l3 3 3-3v6M17 9v5M15 12l2 2 2-2" /></I>,
   comment: <I><path d="M4 5h16v11H9l-5 4z" /></I>,
   plus: <I s={16}><path d="M12 5v14M5 12h14" /></I>,
   minus: <I s={16}><path d="M5 12h14" /></I>,

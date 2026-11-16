@@ -50,7 +50,8 @@ Press `?` inside the app to see every keyboard shortcut.
 - `.draw` files for saving and reopening scenes
 - Compatible `.json` import and export for exchanging drawings with other whiteboard tools
 - Mermaid to diagram: flowcharts and sequence diagrams
-- **Markdown:** import `.md` files (headings, paragraphs, lists, task lists, quotes, tables, code blocks, rules and ```mermaid blocks become canvas elements) and export the scene or selection as `.md`, with diagrams written back as Mermaid
+- **Markdown blocks:** write Markdown directly on the canvas (`M` tool, or paste Markdown text). Blocks render headings, bold/italic/strike, inline code, links, task and nested lists, quotes, code fences and tables, re-wrap when resized, and reopen as raw Markdown on double-click
+- **Markdown files:** import `.md` files (headings, paragraphs, lists, task lists, quotes, tables, code blocks, rules and ```mermaid blocks become canvas elements) and export the scene or selection as `.md`, with diagrams written back as Mermaid
 - Personal library with search, rename and import/export
 - Image import quality setting: original, high (max 4K) or compressed (max 1600px)
 
@@ -58,7 +59,7 @@ Press `?` inside the app to see every keyboard shortcut.
 
 | Action | Shortcut |
 | --- | --- |
-| Tools | `V` `R` `D` `O` `A` `L` `P` `T` `E` `H` `K` `F` `C` or number keys `1`–`9` |
+| Tools | `V` `R` `D` `O` `A` `L` `P` `T` `E` `H` `K` `F` `C` `M` or number keys `1`–`9` |
 | Keep tool active | `Q` |
 | Undo / redo | `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z` |
 | Duplicate | `Ctrl/Cmd+D` |
@@ -83,6 +84,7 @@ src/
     interchange.ts  Compatible JSON import/export
     mermaid.ts    Mermaid parser and layout
     markdown.ts   Markdown import (to elements) and export
+    mdrender.ts   Markdown block layout and canvas rendering
     share.ts      Compressed share-link encoding
 ```
 

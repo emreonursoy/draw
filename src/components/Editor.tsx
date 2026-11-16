@@ -14,6 +14,7 @@ import { createProject, deleteProject, emptyData, ensureCurrent, getProject, lis
 import { exportInterchange, importInterchange, isInterchangeData } from '@/lib/interchange';
 import { ProjectsDialog } from './Projects';
 import { parseMarkdown, toMarkdown } from '@/lib/markdown';
+import { fitMarkdown } from '@/lib/mdrender';
 import { processImage } from '@/lib/image';
 import { decodeScene, encodeScene } from '@/lib/share';
 import { MermaidDialog } from './MermaidDialog';
@@ -42,7 +43,7 @@ const GRID = 20;
 const THEME_KEY = 'draw:theme';
 const LIBKEY = 'draw:library:v1';
 const TOOL_KEYS: Record<string, ToolType> = {
-  '1': 'selection', v: 'selection', f: 'frame', c: 'comment', '2': 'rectangle', r: 'rectangle', '3': 'diamond', d: 'diamond', '4': 'ellipse', o: 'ellipse',
+  '1': 'selection', v: 'selection', f: 'frame', c: 'comment', m: 'markdown', '2': 'rectangle', r: 'rectangle', '3': 'diamond', d: 'diamond', '4': 'ellipse', o: 'ellipse',
   '5': 'arrow', a: 'arrow', '6': 'line', l: 'line', '7': 'freedraw', p: 'freedraw', '8': 'text', t: 'text', '9': 'image',
   e: 'eraser', h: 'hand', k: 'laser',
 };
@@ -166,11 +167,12 @@ export default function Editor() {
     const shape = e.type === 'rectangle' || e.type === 'diamond' || e.type === 'ellipse';
     switch (k) {
       case 'strokeColor': return e.type !== 'image';
-      case 'backgroundColor': case 'fillStyle': return shape;
+      case 'backgroundColor': return shape || e.type === 'markdown';
+      case 'fillStyle': return shape;
       case 'strokeWidth': return e.type !== 'text' && e.type !== 'image';
       case 'strokeStyle': case 'roughness': return shape || isLinear(e);
       case 'roundness': return e.type === 'rectangle' || e.type === 'diamond';
-      case 'fontFamily': case 'fontSize': case 'textAlign': return e.type === 'text' || canHaveLabel(e);
+      case 'fontFamily': case 'fontSize': case 'textAlign': return e.type === 'text' || e.type === 'markdown' || canHaveLabel(e);
       case 'arrowType': return isLinear(e);
       case 'startArrowhead': case 'endArrowhead': return e.type === 'arrow';
       default: return true;
@@ -186,6 +188,7 @@ export default function Editor() {
         if (p.arrowType === 'sharp' || p.arrowType === 'round' || p.arrowType === 'elbow') { if (e.type === 'line' && p.arrowType === 'elbow') delete p.arrowType; }
         let n = { ...e, ...p } as DrawElement;
         if (n.type === 'text' && ('fontSize' in p || 'fontFamily' in p)) n = fitText(n);
+        if (n.type === 'markdown' && ('fontSize' in p || 'fontFamily' in p)) n = fitMarkdown(n);
         return n;
       }));
       commit();
@@ -392,7 +395,8 @@ export default function Editor() {
   };
   const insertText = (text: string) => {
     const a = A();
-    const el = fitText(newElement('text', 0, 0, a.style, { text }));
+    const looksMd = text.includes('\n') && /^(#{1,6}\s|\s*[-*+]\s|\s*\d+[.)]\s|```|>\s|\|.*\|)/m.test(text);
+    const el = looksMd ? fitMarkdown(newElement('markdown', 0, 0, { ...a.style, fontSize: 18, fontFamily: 2 }, { text, width: 480 })) : fitText(newElement('text', 0, 0, a.style, { text }));
     pasteElements([el]);
   };
   const insertImageFile = async (file: File | Blob, at?: Pt) => {
@@ -507,15 +511,18 @@ export default function Editor() {
       const p = misc.current.pending;
       misc.current.pending = null;
       if (p && t.trim()) {
-        const el = fitText({ ...p, text: t });
+        const el = p.type === 'markdown' ? fitMarkdown({ ...p, text: t }) : fitText({ ...p, text: t });
         st.current.elements = [...E(), el];
-        st.current.app = { ...st.current.app, selectedIds: { [el.id]: true }, tool: st.current.app.toolLocked ? 'text' : 'selection' };
+        st.current.app = { ...st.current.app, selectedIds: { [el.id]: true }, tool: st.current.app.toolLocked ? p.type : 'selection' };
         commit();
-      } else st.current.app = { ...st.current.app, tool: st.current.app.toolLocked ? 'text' : 'selection' };
+      } else st.current.app = { ...st.current.app, tool: st.current.app.toolLocked ? (p?.type === 'markdown' ? 'markdown' : 'text') : 'selection' };
     } else {
       const el = E().find((e) => e.id === ed.id);
       if (el) {
-        if (el.type === 'text') {
+        if (el.type === 'markdown') {
+          if (!t.trim()) { st.current.elements = E().filter((e) => e.id !== el.id); st.current.app = { ...st.current.app, selectedIds: {} }; }
+          else st.current.elements = E().map((e) => (e.id === el.id ? fitMarkdown({ ...e, text: t }) : e));
+        } else if (el.type === 'text') {
           if (!t.trim()) { st.current.elements = E().filter((e) => e.id !== el.id); st.current.app = { ...st.current.app, selectedIds: {} }; }
           else st.current.elements = E().map((e) => (e.id === el.id ? fitText({ ...e, text: t }) : e));
         } else {
@@ -538,7 +545,7 @@ export default function Editor() {
     const s = sel();
     if (s.length !== 1) return;
     const e = s[0];
-    if (e.type === 'text' || canHaveLabel(e)) startEdit(e, false);
+    if (e.type === 'text' || e.type === 'markdown' || canHaveLabel(e)) startEdit(e, false);
   };
 
   /* ---------- multipoint lines ---------- */
@@ -665,6 +672,7 @@ export default function Editor() {
         return;
       case 'text':
       case 'image':
+      case 'markdown':
       case 'comment':
         drag.current = { kind: 'textClick', p: raw };
         return;
@@ -903,6 +911,11 @@ export default function Editor() {
           const t = fitText({ ...o, fontSize: fs });
           return { ...t, x: tc[0] - t.width / 2, y: tc[1] - t.height / 2 };
         }
+        if (o.type === 'markdown') {
+          const w = Math.max(160, Math.abs(nx2 - nx1));
+          const f = fitMarkdown({ ...o, width: w });
+          return { ...f, x: h.includes('w') ? o.x + o.width - w : o.x, y: h.includes('n') ? o.y + o.height - f.height : o.y };
+        }
         const w = Math.abs(nx2 - nx1), hh = Math.abs(ny2 - ny1);
         return { ...o, width: w, height: hh, x: tc[0] - w / 2, y: tc[1] - hh / 2 };
       }
@@ -910,6 +923,10 @@ export default function Editor() {
       const mx = (v: number) => nx1 + (v - x1) * sx, my = (v: number) => ny1 + (v - y1) * sy;
       if (isPoints(o)) return withAbsPoints(o, absPoints(o).map(([px, py]) => [mx(px), my(py)] as Pt));
       const ax = mx(bx1), bx = mx(bx2), ay = my(by1), by = my(by2);
+      if (o.type === 'markdown') {
+        const f = fitMarkdown({ ...o, width: Math.max(160, Math.abs(bx - ax)) });
+        return { ...f, x: Math.min(ax, bx), y: Math.min(ay, by) };
+      }
       if (o.type === 'text') {
         const fs = clamp(Math.round(o.fontSize * Math.abs(sy)), 6, 400);
         const t = fitText({ ...o, fontSize: fs });
@@ -967,7 +984,12 @@ export default function Editor() {
         }
         if (a.tool === 'image') { misc.current.imageAt = d.p; imgRef.current?.click(); break; }
         const hit = topHit(d.p);
-        if (hit && hit.type === 'text') { startEdit(hit, false); break; }
+        if (hit && (hit.type === 'text' || hit.type === 'markdown')) { startEdit(hit, false); break; }
+        if (a.tool === 'markdown') {
+          const md = newElement('markdown', snapV(d.p[0]), snapV(d.p[1]), { ...a.style, fontSize: 18, fontFamily: 2 }, { text: '', width: 440, height: 80 });
+          startEdit(md, true);
+          break;
+        }
         const el = fitText(newElement('text', snapV(d.p[0]), snapV(d.p[1]), a.style, { text: ' ' }));
         startEdit({ ...el, text: '' }, true);
         break;
@@ -1020,7 +1042,7 @@ export default function Editor() {
     const p = toScene(e);
     const hit = topHit(p);
     if (hit) {
-      if (hit.type === 'text' || canHaveLabel(hit)) startEdit(hit, false);
+      if (hit.type === 'text' || hit.type === 'markdown' || canHaveLabel(hit)) startEdit(hit, false);
       return;
     }
     const el = newElement('text', snapV(p[0]), snapV(p[1]), a.style, { text: '' });
@@ -1095,7 +1117,7 @@ export default function Editor() {
     const resize = () => setApp({ width: window.innerWidth, height: window.innerHeight });
     resize();
     window.addEventListener('resize', resize);
-    const refit = () => { st.current.elements = E().map((e) => (e.type === 'text' ? fitText(e) : e)); rerender(); };
+    const refit = () => { st.current.elements = E().map((e) => (e.type === 'text' ? fitText(e) : e.type === 'markdown' ? fitMarkdown(e) : e)); rerender(); };
     document.fonts?.load("24px Caveat").then(refit).catch(() => {});
     document.fonts?.ready.then(refit).catch(() => {});
 
@@ -1245,7 +1267,7 @@ export default function Editor() {
   const selected = elements.filter((e) => app.selectedIds[e.id]);
   const dark = app.theme === 'dark';
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-  const baseCursor = app.tool === 'hand' ? 'grab' : app.tool === 'selection' ? undefined : app.tool === 'eraser' ? 'cell' : app.tool === 'text' ? 'text' : 'crosshair';
+  const baseCursor = app.tool === 'hand' ? 'grab' : app.tool === 'selection' ? undefined : app.tool === 'eraser' ? 'cell' : (app.tool === 'text' || app.tool === 'markdown') ? 'text' : 'crosshair';
   const editingEl = app.editing ? (app.editing.isNew ? misc.current.pending : elements.find((e) => e.id === app.editing!.id)) : null;
   const canUndo = st.current.hist.idx > 0, canRedo = st.current.hist.idx < st.current.hist.stack.length - 1;
   const showProps = !app.zen && !app.viewOnly && (selected.length > 0 || !['selection', 'eraser', 'hand', 'laser', 'image', 'comment'].includes(app.tool));

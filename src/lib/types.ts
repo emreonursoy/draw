@@ -1,5 +1,5 @@
 export type Pt = [number, number];
-export type ElType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'freedraw' | 'text' | 'image' | 'frame' | 'comment';
+export type ElType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'freedraw' | 'text' | 'image' | 'frame' | 'comment' | 'markdown';
 export type ToolType = ElType | 'selection' | 'eraser' | 'hand' | 'laser';
 export type FillStyle = 'hachure' | 'cross-hatch' | 'solid' | 'zigzag';
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted';

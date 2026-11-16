@@ -55,7 +55,7 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
   const ibtn = { padding: '0 12px', height: 30 } as const;
 
   return (
-    <Modal title="Projects" onClose={onClose} width={860}>
+    <Modal title="Projects" onClose={onClose} width={860} height="min(560px, 88vh)">
       <div className="proj-new">
         <input value={name} placeholder="New project name" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') create(); }} />
         <button className="btn primary" style={{ padding: '0 14px' }} onClick={create}>Create</button>
@@ -87,13 +87,16 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
               )}
               <span className="muted">{thumbs[p.id]?.count ?? 0} elements · {new Date(p.updatedAt).toLocaleDateString()}{p.id === cur ? ' · open' : ''}</span>
             </div>
-            {confirmId === p.id ? (
-              <div className="proj-confirm">
-                <span>Delete this project?</span>
-                <button className="btn danger-btn" style={ibtn} onClick={() => { actions.removeProject(p.id); setConfirmId(null); refresh(); }}>Delete</button>
-                <button className="btn" style={ibtn} onClick={() => setConfirmId(null)}>Cancel</button>
+            {confirmId === p.id && (
+              <div className="proj-confirm" role="alertdialog" aria-label={`Delete ${p.name}?`}>
+                <span>Delete “{p.name}”?<br /><small>This cannot be undone.</small></span>
+                <div>
+                  <button className="btn danger-btn" style={ibtn} autoFocus onClick={() => { actions.removeProject(p.id); setConfirmId(null); refresh(); }}>Delete</button>
+                  <button className="btn" style={ibtn} onClick={() => setConfirmId(null)}>Cancel</button>
+                </div>
               </div>
-            ) : (
+            )}
+            {(
               <div className="proj-actions">
                 <button className="opt" title="Rename" aria-label="Rename" onClick={() => { setEditId(p.id); setEditName(p.name); }}>{Icons.edit}</button>
                 <button className="opt" title="Duplicate" aria-label="Duplicate" onClick={() => { duplicateProject(p.id); refresh(); }}>{Icons.copy}</button>

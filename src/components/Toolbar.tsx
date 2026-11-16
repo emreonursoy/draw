@@ -15,6 +15,7 @@ const TOOLS: { id: ToolType; label: string; key: string }[] = [
   { id: 'freedraw', label: 'Draw', key: '7' },
   { id: 'text', label: 'Text', key: '8' },
   { id: 'image', label: 'Insert image', key: '9' },
+  { id: 'markdown', label: 'Markdown block', key: 'M' },
   { id: 'frame', label: 'Frame', key: 'F' },
   { id: 'comment', label: 'Comment', key: 'C' },
   { id: 'eraser', label: 'Eraser', key: 'E' },

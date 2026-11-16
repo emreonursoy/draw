@@ -5,6 +5,7 @@ import type { Arrowhead, DrawElement, Pt } from './types';
 import { FONTS } from './types';
 import { commonBounds, elBounds, elCenter, FRAME_LABEL, fontString, isFilled, LINE_HEIGHT, measureText, midPoint, renderPoints } from './element';
 import { dist } from './utils';
+import { drawMarkdown } from './mdrender';
 import { frameChildren } from './element';
 
 const gen = rough.generator();
@@ -214,6 +215,8 @@ export function drawElement(ctx: CanvasRenderingContext2D, rc: ReturnType<typeof
   ctx.lineJoin = 'round';
   if (el.type === 'text') {
     drawTextBlock(ctx, el.text, el.fontSize, el.fontFamily, el.strokeColor, el.x, el.y, el.width, el.textAlign);
+  } else if (el.type === 'markdown') {
+    drawMarkdown(ctx, el);
   } else if (el.type === 'image') {
     const img = el.dataURL ? getImage(el.dataURL, opts.onImageLoad) : null;
     if (img) ctx.drawImage(img, el.x, el.y, el.width, el.height);
@@ -351,7 +354,18 @@ export function exportSVG(all: DrawElement[], opts: { padding: number; backgroun
     const c = elCenter(el);
     if (el.angle) g.setAttribute('transform', `rotate(${(el.angle * 180) / Math.PI} ${c[0]} ${c[1]})`);
     g.setAttribute('opacity', String(el.opacity / 100));
-    if (el.type === 'text') g.appendChild(textNode(el.text, el.fontSize, el.fontFamily, el.strokeColor, el.x, el.y, el.width, el.textAlign));
+    if (el.type === 'markdown') {
+      const c = document.createElement('canvas');
+      c.width = Math.ceil(el.width * 2); c.height = Math.ceil(el.height * 2);
+      const cx = c.getContext('2d')!;
+      cx.scale(2, 2); cx.translate(-el.x, -el.y);
+      drawMarkdown(cx, el);
+      const im = document.createElementNS(NS, 'image');
+      im.setAttribute('href', c.toDataURL());
+      im.setAttribute('x', String(el.x)); im.setAttribute('y', String(el.y));
+      im.setAttribute('width', String(el.width)); im.setAttribute('height', String(el.height));
+      g.appendChild(im);
+    } else if (el.type === 'text') g.appendChild(textNode(el.text, el.fontSize, el.fontFamily, el.strokeColor, el.x, el.y, el.width, el.textAlign));
     else if (el.type === 'image' && el.dataURL) {
       const im = document.createElementNS(NS, 'image');
       im.setAttribute('href', el.dataURL);

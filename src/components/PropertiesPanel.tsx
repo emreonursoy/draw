@@ -81,7 +81,7 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
   const set = (p: Partial<Style>) => actions.applyStyle(p);
   const shape = has('rectangle', 'diamond', 'ellipse');
   const lin = has('arrow', 'line');
-  const hasText = has('text') || selected.some((e) => e.text);
+  const hasText = has('text', 'markdown') || selected.some((e) => e.text);
   const many = selected.length > 1;
   const A = actions;
 
@@ -91,6 +91,9 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
         <Section label="Stroke">
           <ColorPicker value={v('strokeColor')} presets={STROKES} onChange={(c) => set({ strokeColor: c })} />
         </Section>
+      )}
+      {has('markdown') && !shape && (
+        <Section label="Background"><ColorPicker value={v('backgroundColor')} presets={BGS} transparent onChange={(c) => set({ backgroundColor: c })} /></Section>
       )}
       {shape && (
         <>
@@ -180,6 +183,7 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
               <Opt key={l} cur={v('fontSize')} val={s} onPick={(x) => set({ fontSize: x })} title={`${s}px`}><span style={{ fontSize: 12, fontWeight: 600 }}>{l}</span></Opt>
             ))}
           </Section>
+          {!subjects.every((s) => s === 'markdown') && (
           <Section label="Text align">
             {(['left', 'center', 'right'] as const).map((al) => (
               <Opt key={al} cur={v('textAlign')} val={al} onPick={(x) => set({ textAlign: x })} title={al}>
@@ -189,6 +193,7 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
               </Opt>
             ))}
           </Section>
+          )}
         </>
       )}
       <Section label={`Opacity`}>

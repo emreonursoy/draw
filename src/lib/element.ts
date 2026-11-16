@@ -1,5 +1,6 @@
 import type { DrawElement, ElType, Pt, Style } from './types';
 import { FONTS } from './types';
+import { fitMarkdown } from './mdrender';
 import { clamp, dist, distToSegment, pointInPolygon, rotatePt, seedRand, uid } from './utils';
 
 export const LINE_HEIGHT = 1.25;
@@ -143,6 +144,7 @@ export function hitElement(el: DrawElement, p: Pt, tol: number): boolean {
   switch (el.type) {
     case 'text':
     case 'image':
+    case 'markdown':
       return inRect;
     case 'comment':
       return Math.hypot(q[0] - el.x, q[1] - el.y) <= tol + 12;
@@ -254,7 +256,7 @@ export function groupSelect(els: DrawElement[], el: DrawElement): string[] {
 /* ---------- import normalization (also accepts compatible JSON) ---------- */
 export function normalizeImported(raw: any, defaults: Style): DrawElement | null {
   if (!raw || typeof raw !== 'object' || raw.isDeleted) return null;
-  const types = ['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame', 'comment'];
+  const types = ['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame', 'comment', 'markdown'];
   if (!types.includes(raw.type)) return null;
   const el = newElement(raw.type, raw.x ?? 0, raw.y ?? 0, defaults);
   const n = (v: any, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
@@ -289,7 +291,7 @@ export function normalizeImported(raw: any, defaults: Style): DrawElement | null
     startBinding: raw.startBinding?.elementId ?? (typeof raw.startBinding === 'string' ? raw.startBinding : null),
     endBinding: raw.endBinding?.elementId ?? (typeof raw.endBinding === 'string' ? raw.endBinding : null),
   };
-  return out.type === 'text' ? fitText(out) : out;
+  return out.type === 'text' ? fitText(out) : out.type === 'markdown' ? fitMarkdown(out) : out;
 }
 export { clamp };
 

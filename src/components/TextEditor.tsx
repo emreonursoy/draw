@@ -2,19 +2,22 @@
 import { useEffect, useRef } from 'react';
 import type { AppState, DrawElement } from '@/lib/types';
 import { DARK_FILTER } from '@/lib/render';
+import { FONTS } from '@/lib/types';
 import { fontString, LINE_HEIGHT, measureText } from '@/lib/element';
 
 export default function TextEditor({ el, app, dark, onCommit }: { el: DrawElement; app: AppState; dark: boolean; onCommit: (t: string | null) => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const done = useRef(false);
+  const isMd = el.type === 'markdown';
   const isFrame = el.type === 'frame';
-  const isLabel = el.type !== 'text' && !isFrame;
+  const isLabel = el.type !== 'text' && !isFrame && !isMd;
   const fs = isFrame ? 14 : el.fontSize;
   const ff = (isFrame ? 2 : el.fontFamily) as 1 | 2 | 3;
   const z = app.zoom;
   const fit = () => {
     const ta = ref.current;
     if (!ta) return;
+    if (isMd) { ta.style.height = '0px'; ta.style.height = Math.max(ta.scrollHeight, 96) + 'px'; return; }
     ta.style.width = '0px';
     ta.style.height = '0px';
     ta.style.width = Math.max(ta.scrollWidth + 4, 8) + 'px';
@@ -48,12 +51,17 @@ export default function TextEditor({ el, app, dark, onCommit }: { el: DrawElemen
         id="draw-text-editor"
         ref={ref}
         className="text-editor"
-        wrap="off"
+        wrap={isMd ? 'soft' : 'off'}
         spellCheck={false}
         style={{
           left: cx, top: cy, font: fontString(fs * z, ff), lineHeight: LINE_HEIGHT, color: isFrame ? '#868e96' : el.strokeColor,
           textAlign: isLabel ? 'center' : el.textAlign, transform: isLabel ? 'translate(-50%, -50%)' : undefined, opacity: el.opacity / 100,
+          ...(isMd ? {
+            width: el.width * z, minHeight: 96, font: `${14 * z}px ${FONTS[3]}`, lineHeight: 1.5, color: '#1e1e1e', background: '#ffffff',
+            border: '2px solid #6965db', borderRadius: 10, padding: 12 * z, whiteSpace: 'pre-wrap' as const, boxShadow: '0 6px 24px rgba(0,0,0,.18)', opacity: 1,
+          } : {}),
         }}
+        placeholder={isMd ? '# Write Markdown…  (Esc or click outside to finish)' : undefined}
         onInput={fit}
         onBlur={() => finish(null)}
         onKeyDown={(e) => {

@@ -83,6 +83,7 @@ export function exportInterchange(all: DrawElement[], viewBg: string, grid: bool
     const b: any = base(e);
     const bound = [...(boundTo.get(e.id) || [])];
     switch (e.type) {
+      case 'markdown': { out.push(textEl(e.id, e.x, e.y, e.width, e.height, { ...e, fontFamily: 3, fontSize: 14 }, null)); continue; }
       case 'frame': { b.name = e.text; b.roundness = null; break; }
       case 'rectangle': case 'diamond': b.roundness = e.roundness ? { type: 3 } : null; break;
       case 'arrow': case 'line':

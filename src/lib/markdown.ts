@@ -153,6 +153,7 @@ function mermaidFor(els: DrawElement[]): string[] {
 }
 
 function textBlock(t: DrawElement, shift: number): string {
+  if (t.type === 'markdown') return t.text.trim();
   const body = t.text.trim();
   const lvl = t.fontSize >= 36 ? 1 : t.fontSize >= 28 ? 2 : t.fontSize >= 22 ? 3 : 0;
   const ls = body.split('\n');
@@ -177,7 +178,7 @@ export function toMarkdown(all: DrawElement[], title?: string): string {
   const sections = frames.length
     ? frames.map((f) => ({ title: f.text || 'Untitled frame', els: frameChildren(f, els) }))
     : [{ title: '', els: els.filter((e) => e.type !== 'frame') }];
-  const hasH1 = els.some((e) => e.type === 'text' && e.fontSize >= 36);
+  const hasH1 = els.some((e) => (e.type === 'text' && e.fontSize >= 36) || (e.type === 'markdown' && /^# /m.test(e.text)));
   const useTitle = !!title && !hasH1;
   const out: string[] = [];
   if (useTitle) out.push(`# ${title}`, '');
@@ -187,7 +188,7 @@ export function toMarkdown(all: DrawElement[], title?: string): string {
     const used = new Set<string>();
     s.els.forEach((e) => { if (e.type === 'arrow') { if (e.startBinding) used.add(e.startBinding); if (e.endBinding) used.add(e.endBinding); } });
     const items: { y: number; text: string }[] = [];
-    for (const t of s.els.filter((e) => e.type === 'text' && e.text.trim())) items.push({ y: t.y, text: textBlock(t, shift) });
+    for (const t of s.els.filter((e) => (e.type === 'text' || e.type === 'markdown') && e.text.trim())) items.push({ y: t.y, text: textBlock(t, shift) });
     const diagram = mermaidFor(s.els);
     if (diagram.length) items.push({ y: Math.min(...s.els.filter((e) => used.has(e.id)).map((e) => e.y)), text: diagram.join('\n') });
     for (const e of s.els.filter((e) => isShape(e) && !used.has(e.id))) items.push({ y: e.y, text: `- ${e.text.replace(/\n/g, ' ')}` });
