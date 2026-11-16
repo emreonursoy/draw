@@ -27,7 +27,7 @@ Press `?` inside the app to see every keyboard shortcut.
 ## Features
 
 ### Drawing
-- Tools: selection, hand, rectangle, diamond, ellipse, arrow, line, freehand, text, image, eraser, laser pointer, frame and comment
+- Tools: selection, hand, rectangle, diamond, ellipse, arrow, line, freehand, text, image, eraser, laser pointer, frame, comment and Markdown block
 - Hand-drawn rendering with three sloppiness levels, plus fill styles (hachure, cross-hatch, solid, zigzag), stroke width and style, rounded or sharp edges, opacity, colors and fonts
 - Arrows with sharp, curved or elbow routing, multi-point lines, several arrowheads, and arrows that stay attached to shapes
 - Text inside shapes, on arrows and as free text
@@ -37,7 +37,7 @@ Press `?` inside the app to see every keyboard shortcut.
 
 ### Projects
 - Multiple projects stored in `localStorage` with autosave
-- Dashboard with thumbnails, search, sorting, rename, duplicate, export and delete
+- Dashboard with thumbnails, search, sorting, rename (with Save/Cancel), duplicate, export and delete (with an in-card confirmation)
 - Optional autosave to a real file (`.draw`) in browsers that support the File System Access API
 
 ### Presenting and sharing
@@ -76,6 +76,7 @@ Press `?` inside the app to see every keyboard shortcut.
 src/
   app/            Next.js app router (layout, page, global styles)
   components/     Editor, toolbar, properties panel, menus, dialogs, presenter
+    ui.tsx        App-styled wrappers around UI SDK parts (buttons, selects, sliders, toggles...)
   lib/
     element.ts    Element model, bounds, hit testing, arrow bindings
     render.ts     Canvas rendering and PNG/SVG export
@@ -86,6 +87,7 @@ src/
     markdown.ts   Markdown import (to elements) and export
     mdrender.ts   Markdown block layout and canvas rendering
     share.ts      Compressed share-link encoding
+    image.ts      Image resize / recompress on import
 ```
 
 All editor state lives in a small set of refs inside `components/Editor.tsx`; the canvas is redrawn on every change and element objects are treated as immutable so rendered shapes can be cached.
