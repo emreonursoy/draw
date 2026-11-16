@@ -21,7 +21,7 @@ import { regionAt } from '@/lib/fill';
 import EmbedLayer from './EmbedLayer';
 import { EmbedDialog } from './EmbedDialog';
 import { EmbedConfirm } from './EmbedConfirm';
-import { blockedReason, hostOf, isTrustedHost, MAX_LOADED_EMBEDS, trustHost } from '@/lib/embed';
+import { decideLoad, embedTarget, hostOf, MAX_LOADED_EMBEDS, trustHost } from '@/lib/embed';
 import { decodeScene, encodeScene, MAX_LINK_CHARS } from '@/lib/share';
 import { MermaidDialog } from './MermaidDialog';
 import Presenter from './Presenter';
@@ -531,7 +531,7 @@ export default function Editor() {
     setCurrentId(id);
     st.current.elements = els;
     st.current.hist = { stack: [{ elements: els, sel: {} }], idx: 0 };
-    setApp({ loadedEmbeds: {}, activeEmbed: null, selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
+    setApp({ loadedEmbeds: {}, activeEmbed: null, embedConfirm: null, selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
   };
   const switchProject = (id: string) => leaveProject(() => loadProject(id));
   const newProject = (name: string) => leaveProject(() => {
@@ -890,17 +890,20 @@ export default function Editor() {
   };
   /** Loads an embed after checking the policy, the limit and (unless the host is trusted) asking the user. */
   const requestLoadEmbed = (id: string) => {
-    const a = A();
     const el = E().find((x) => x.id === id);
-    if (!el || el.type !== 'embed' || !el.url) return;
-    const why = blockedReason(el.url);
-    if (why) return toast(why);
-    if (a.loadedEmbeds[id]) return setApp({ activeEmbed: id });
-    if (Object.keys(a.loadedEmbeds).length >= MAX_LOADED_EMBEDS) return toast(`Unload another page first: at most ${MAX_LOADED_EMBEDS} pages can be loaded at once.`);
-    if (!a.sharedView && isTrustedHost(hostOf(el.url))) return doLoadEmbed(id);
+    if (!el || el.type !== 'embed') return;
+    const d = decideLoad(el, E(), A().loadedEmbeds, { shared: A().sharedView });
+    if (d.action === 'blocked') return toast(d.reason);
+    if (d.action === 'limit') return toast(`Unload another page first: at most ${MAX_LOADED_EMBEDS} pages can be loaded at once.`);
+    if (d.action === 'focus') return setApp({ activeEmbed: id });
+    if (d.action === 'load') return doLoadEmbed(id);
     setApp({ embedConfirm: { id } });
   };
-  const doLoadEmbed = (id: string) => setApp({ loadedEmbeds: { ...A().loadedEmbeds, [id]: true }, activeEmbed: id, embedConfirm: null });
+  const doLoadEmbed = (id: string) => {
+    const el = E().find((x) => x.id === id);
+    if (!el?.url) return setApp({ embedConfirm: null });
+    setApp({ loadedEmbeds: { ...A().loadedEmbeds, [id]: el.url }, activeEmbed: id, embedConfirm: null });
+  };
   const editEmbed = () => { const s = sel().find((x) => x.type === 'embed'); if (s) setApp({ embedDialog: { id: s.id } }); };
   const unloadEmbed = (id: string) => {
     const { [id]: _gone, ...rest } = A().loadedEmbeds;
@@ -1307,6 +1310,8 @@ export default function Editor() {
     });
   };
   useEffect(() => { drawScene(); drawOverlay(); });
+  // a pending load confirmation must not outlive its embed (deleted, undone, project switched)
+  useEffect(() => { const c = A().embedConfirm; if (c && !E().some((x) => x.id === c.id && x.url)) setApp({ embedConfirm: null }); });
 
   /* ---------- global effects ---------- */
   useEffect(() => {
@@ -1610,7 +1615,7 @@ export default function Editor() {
       )}
       {app.presenting && <Presenter app={app} elements={elements} onClose={() => setApp({ presenting: false })} />}
       {app.embedDialog && (() => { const cur = app.embedDialog.id ? elements.find((x) => x.id === app.embedDialog!.id) : null; return <EmbedDialog initial={cur?.url ?? ''} onSubmit={submitEmbed} onClose={() => setApp({ embedDialog: null })} />; })()}
-      {app.embedConfirm && (() => { const c = elements.find((x) => x.id === app.embedConfirm!.id); return c?.url ? <EmbedConfirm url={c.url} shared={app.sharedView} onClose={() => setApp({ embedConfirm: null })} onLoad={(remember) => { if (remember) trustHost(hostOf(c.url!)); doLoadEmbed(c.id); }} /> : null; })()}
+      {app.embedConfirm && (() => { const c = elements.find((x) => x.id === app.embedConfirm!.id); return c?.url ? <EmbedConfirm url={embedTarget(c.url)} shared={app.sharedView} onClose={() => setApp({ embedConfirm: null })} onLoad={(remember) => { if (remember) trustHost(hostOf(embedTarget(c.url!))); doLoadEmbed(c.id); }} /> : null; })()}
       {app.mermaidOpen && <MermaidDialog app={app} actions={actions} onClose={() => setApp({ mermaidOpen: false })} />}
       {app.activeComment && (() => { const c = elements.find((x) => x.id === app.activeComment); return c ? <CommentPopover key={c.id} el={c} app={app} actions={actions} /> : null; })()}
       <ToastRegion className="toast-region">{() => <Toast className="toast"><ToastTitle /></Toast>}</ToastRegion>

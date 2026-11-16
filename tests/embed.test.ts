@@ -52,7 +52,7 @@ describe('hostOf', () => {
   });
 });
 
-import { blockedReason, getTrustedHosts, isPrivateHost, isTrustedHost, MAX_LOADED_EMBEDS, trustHost } from '../src/lib/embed';
+import { decideLoad, embedTarget, liveLoaded, blockedReason, getTrustedHosts, isPrivateHost, isTrustedHost, MAX_LOADED_EMBEDS, trustHost } from '../src/lib/embed';
 
 describe('embed safety policy', () => {
   it('detects local and private hosts', () => {
@@ -92,4 +92,45 @@ describe('embed safety policy', () => {
   });
 
   it('has a sensible cap', () => { expect(MAX_LOADED_EMBEDS).toBeGreaterThan(0); });
+});
+
+describe('decideLoad (consent rules)', () => {
+  const policy = { origin: 'https://draw.test', allowLocal: false };
+  const a = { id: 'a', url: 'https://example.com/' };
+  const none = () => false;
+
+  it('asks before loading an unknown host, always for shared drawings', () => {
+    expect(decideLoad(a, [a], {}, { shared: false, policy, trusted: none }).action).toBe('confirm');
+    expect(decideLoad(a, [a], {}, { shared: false, policy, trusted: () => true }).action).toBe('load');
+    expect(decideLoad(a, [a], {}, { shared: true, policy, trusted: () => true }).action).toBe('confirm');
+  });
+
+  it('blocks private and same-origin targets', () => {
+    const p = { id: 'p', url: 'http://10.0.0.1/' };
+    expect(decideLoad(p, [p], {}, { shared: false, policy, trusted: () => true }).action).toBe('blocked');
+    const s = { id: 's', url: 'https://draw.test/x' };
+    expect(decideLoad(s, [s], {}, { shared: false, policy }).action).toBe('blocked');
+  });
+
+  it('focuses an embed that is already loaded at its current address', () => {
+    expect(decideLoad(a, [a], { a: a.url }, { shared: false, policy }).action).toBe('focus');
+  });
+
+  it('treats an embed whose link was edited as not loaded, so it must be confirmed again', () => {
+    const edited = { id: 'a', url: 'https://evil.example/' };
+    expect(liveLoaded({ a: 'https://example.com/' }, [edited])).toEqual([]);
+    expect(decideLoad(edited, [edited], { a: 'https://example.com/' }, { shared: false, policy, trusted: none }).action).toBe('confirm');
+  });
+
+  it('counts only embeds that still exist toward the limit', () => {
+    const els = Array.from({ length: 6 }, (_, i) => ({ id: `e${i}`, url: `https://s${i}.example.com/` }));
+    const loaded = Object.fromEntries(els.slice(0, 5).map((e) => [e.id, e.url]));
+    expect(decideLoad(els[5], els, loaded, { shared: false, policy, trusted: none }).action).toBe('limit');
+    // four of the five were deleted
+    expect(decideLoad(els[5], [els[0], els[5]], loaded, { shared: false, policy, trusted: none }).action).toBe('confirm');
+  });
+
+  it('checks the converted player address, not the pasted link', () => {
+    expect(embedTarget('https://youtu.be/abc123')).toContain('youtube-nocookie.com');
+  });
 });

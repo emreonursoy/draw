@@ -1,6 +1,7 @@
 'use client';
+import { useMemo } from 'react';
 import type { AppState, DrawElement } from '@/lib/types';
-import { blockedReason, hostOf, toEmbedUrl } from '@/lib/embed';
+import { blockedReason, embedTarget, hostOf, toEmbedUrl } from '@/lib/embed';
 import { Button } from './ui';
 
 const HEADER = 30; // scene px, matches the card drawn on the canvas
@@ -10,7 +11,11 @@ const HEADER = 30; // scene px, matches the card drawn on the canvas
  * receives clicks while it is "active" (after a double-click), so it never gets in the way of selecting or moving it.
  */
 export default function EmbedLayer({ app, elements, actions }: { app: AppState; elements: DrawElement[]; actions: any }) {
-  const loaded = elements.filter((e) => e.type === 'embed' && e.url && app.loadedEmbeds[e.id] && !blockedReason(e.url));
+  // only pages the user agreed to load at their current address, and that the policy still allows
+  const loaded = useMemo(
+    () => elements.filter((e) => e.type === 'embed' && e.url && app.loadedEmbeds[e.id] === e.url && !blockedReason(embedTarget(e.url))),
+    [elements, app.loadedEmbeds],
+  );
   if (!loaded.length) return null;
   return (
     <div className="embed-layer" aria-live="polite">

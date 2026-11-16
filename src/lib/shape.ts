@@ -71,24 +71,26 @@ export function recognizeShape(raw: Pt[]): Recognized | null {
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   const w = x1 - x0, h = y1 - y0;
-  const chord = dist(pts[0], pts[pts.length - 1]);
+  const first = pts[0], last = pts[pts.length - 1];
+  const chord = dist(first, last);
+
+  /** A straight line for the stroke. A stroke that doubles back spans its bounding box instead of its (tiny) chord. */
+  const lineOf = (): Recognized => {
+    let from: Pt = first, to: Pt = last;
+    if (chord < 0.5 * Math.max(w, h)) {
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+      [from, to] = w >= h ? [[x0, my], [x1, my]] : [[mx, y0], [mx, y1]];
+    } else {
+      const ang = (Math.atan2(Math.abs(last[1] - first[1]), Math.abs(last[0] - first[0])) * 180) / Math.PI;
+      if (ang < 5) to = [last[0], first[1]]; // snap near-horizontal
+      else if (ang > 85) to = [first[0], last[1]]; // snap near-vertical
+    }
+    return { kind: 'line', x: Math.min(from[0], to[0]), y: Math.min(from[1], to[1]), width: Math.abs(to[0] - from[0]), height: Math.abs(to[1] - from[1]), points: [from, to] };
+  };
 
   // straight line: the path barely leaves the chord
-  const first = pts[0], last = pts[pts.length - 1];
   const maxDev = Math.max(...pts.map((p) => distToSegment(p, first, last)));
-  if (chord > 0.5 * len && len / chord < 1.12 && maxDev < 0.07 * chord) {
-    let end: Pt = last;
-    const dx = last[0] - first[0], dy = last[1] - first[1];
-    const ang = (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
-    if (ang < 5) end = [last[0], first[1]]; // snap near-horizontal
-    else if (ang > 85) end = [first[0], last[1]]; // snap near-vertical
-    return { kind: 'line', x: Math.min(first[0], end[0]), y: Math.min(first[1], end[1]), width: Math.abs(end[0] - first[0]), height: Math.abs(end[1] - first[1]), points: [first, end] };
-  }
-
-  const lineOf = (): Recognized => {
-    const end: Pt = last;
-    return { kind: 'line', x: Math.min(first[0], end[0]), y: Math.min(first[1], end[1]), width: Math.abs(end[0] - first[0]), height: Math.abs(end[1] - first[1]), points: [first, end] };
-  };
+  if (chord > 0.5 * len && len / chord < 1.12 && maxDev < 0.07 * chord) return lineOf();
   // too thin to be a box or a loop: the closest shape is a line
   if (w < 12 || h < 12) return lineOf();
 

@@ -100,3 +100,43 @@ export function trustHost(host: string) {
   list.add(host.toLowerCase());
   try { localStorage.setItem(TRUST_KEY, JSON.stringify([...list].slice(-200))); } catch { /* storage full: the user will simply be asked again */ }
 }
+
+/* ---------- load decisions ---------- */
+
+/** The address that is actually put in the iframe (converted players included): policy and trust apply to this one. */
+export const embedTarget = (url: string) => toEmbedUrl(url);
+
+/** Loaded embeds map an element id to the address the user agreed to load, so editing the link unloads it. */
+export type LoadedEmbeds = Record<string, string>;
+
+export interface EmbedElementRef { id: string; url?: string }
+
+/** Ids of embeds that are really loaded: the element still exists and still points at the agreed address. */
+export function liveLoaded(loaded: LoadedEmbeds, elements: EmbedElementRef[]): string[] {
+  return elements.filter((e) => e.url && loaded[e.id] === e.url).map((e) => e.id);
+}
+
+export type LoadDecision =
+  | { action: 'blocked'; reason: string }
+  | { action: 'limit' }
+  | { action: 'focus' }
+  | { action: 'load' }
+  | { action: 'confirm' };
+
+/** What to do when the user asks to load an embed. Pure so the consent rules can be tested. */
+export function decideLoad(
+  el: EmbedElementRef,
+  elements: EmbedElementRef[],
+  loaded: LoadedEmbeds,
+  opts: { shared: boolean; policy?: EmbedPolicy; trusted?: (host: string) => boolean },
+): LoadDecision {
+  if (!el.url) return { action: 'blocked', reason: 'This embed has no address.' };
+  const target = embedTarget(el.url);
+  const reason = blockedReason(target, opts.policy);
+  if (reason) return { action: 'blocked', reason };
+  const live = liveLoaded(loaded, elements);
+  if (live.includes(el.id)) return { action: 'focus' };
+  if (live.length >= MAX_LOADED_EMBEDS) return { action: 'limit' };
+  if (!opts.shared && (opts.trusted ?? isTrustedHost)(hostOf(target))) return { action: 'load' };
+  return { action: 'confirm' };
+}

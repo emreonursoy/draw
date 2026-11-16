@@ -85,6 +85,14 @@ describe('recognizeShape', () => {
     expect(recognizeShape(thin)!.kind).toBe('line');
   });
 
+  it('turns a stroke that doubles back into a line spanning its extent', () => {
+    const there: Pt[] = Array.from({ length: 20 }, (_, i) => [i * 8, 0] as Pt);
+    const back = [...there, ...there.slice().reverse().map(([x]) => [x, 2] as Pt)];
+    const r = recognizeShape(back)!;
+    expect(r.kind).toBe('line');
+    expect(r.width).toBeGreaterThan(140);
+  });
+
   it('refuses dots and tiny strokes', () => {
     expect(recognizeShape([[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5]])).toBeNull();
     expect(recognizeShape([[0, 0]])).toBeNull();
