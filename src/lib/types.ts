@@ -67,6 +67,7 @@ export interface AppState {
   projectsOpen: boolean;
   projectName: string;
   confirmClear: boolean;
+  confirmDiscard: boolean;
   presenting: boolean;
   viewOnly: boolean;
   sharedView: boolean;

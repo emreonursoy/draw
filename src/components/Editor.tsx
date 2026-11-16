@@ -55,7 +55,7 @@ const TOOL_KEYS: Record<string, ToolType> = {
 const initialApp = (): AppState => ({
   tool: 'selection', toolLocked: false, scrollX: 0, scrollY: 0, zoom: 1, selectedIds: {}, theme: 'light', viewBg: '#ffffff',
   grid: false, zen: false, style: { ...DEFAULT_STYLE }, editing: null, width: 1200, height: 800, showLibrary: false,
-  exportOpen: false, helpOpen: false, menuOpen: false, contextMenu: null, projectsOpen: false, projectName: 'Untitled', confirmClear: false,
+  exportOpen: false, helpOpen: false, menuOpen: false, contextMenu: null, projectsOpen: false, projectName: 'Untitled', confirmClear: false, confirmDiscard: false,
   presenting: false, viewOnly: false, sharedView: false, activeComment: null, mermaidOpen: false, imageMode: 'high', fileLink: null,
 });
 
@@ -73,7 +73,7 @@ export default function Editor() {
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
     laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
-    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, fileHandle: null as any, shared: null as any, saveT: 0, projectId: '' as string,
+    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -431,13 +431,27 @@ export default function Editor() {
     const a = A();
     return { elements: E(), viewBg: a.viewBg, grid: a.grid, scrollX: a.scrollX, scrollY: a.scrollY, zoom: a.zoom };
   };
-  const saveNow = () => {
-    if (!misc.current.projectId) return;
-    // after a failed write, only retry every 10 s instead of re-serialising the scene on every tick
-    if (misc.current.saveWarned && Date.now() - misc.current.lastFail < 10_000) return;
-    if (saveProject(misc.current.projectId, snapshot())) { misc.current.saveWarned = false; return; }
+  /** Saves the open project. Returns false when it could not be stored (so callers can avoid discarding it). */
+  const saveNow = (force = false): boolean => {
+    if (!misc.current.projectId) return true;
+    // after a failed write, autosave only retries every 10 s instead of re-serialising the scene on every tick
+    // (explicit saves, e.g. before leaving the project, always try again)
+    const wait = 10_000 - (Date.now() - misc.current.lastFail);
+    if (!force && misc.current.saveWarned && wait > 0) {
+      if (!misc.current.retryT) misc.current.retryT = window.setTimeout(() => { misc.current.retryT = 0; saveNow(); }, wait + 50);
+      return false;
+    }
+    if (saveProject(misc.current.projectId, snapshot())) { misc.current.saveWarned = false; return true; }
     misc.current.lastFail = Date.now();
     if (!misc.current.saveWarned) { misc.current.saveWarned = true; toast('Browser storage is full, so this project is not being saved. Export it as a file or delete other projects.'); }
+    return false;
+  };
+  /** Runs `action` (which replaces the open scene) only once the current project is safely saved, or the user agrees to discard it. */
+  const leaveProject = (action: () => void) => {
+    finishMulti(true, true);
+    if (saveNow(true)) return action();
+    misc.current.pendingLeave = action;
+    setApp({ confirmDiscard: true });
   };
   const loadProject = (id: string) => {
     const d = getProject(id) || emptyData();
@@ -449,14 +463,12 @@ export default function Editor() {
     st.current.hist = { stack: [{ elements: els, sel: {} }], idx: 0 };
     setApp({ selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
   };
-  const switchProject = (id: string) => { finishMulti(true, true); saveNow(); loadProject(id); };
-  const newProject = (name: string) => {
-    finishMulti(true, true);
-    saveNow();
+  const switchProject = (id: string) => leaveProject(() => loadProject(id));
+  const newProject = (name: string) => leaveProject(() => {
     const id = createProject(name);
     if (!id) return toast('Not enough browser storage to create a project. Delete projects or export some first.');
     loadProject(id);
-  };
+  });
   const removeProject = (id: string) => {
     const cur = id === misc.current.projectId;
     if (cur) misc.current.projectId = '';
@@ -468,20 +480,19 @@ export default function Editor() {
   };
   const refreshName = () => setApp({ projectName: listProjects().find((p) => p.id === misc.current.projectId)?.name ?? 'Untitled' });
   /** Creates a project from imported data and opens it; reports when browser storage can't hold it. */
-  const openAsProject = (name: string, data: ProjectData) => {
-    finishMulti(true, true);
-    saveNow();
+  const openAsProject = (name: string, data: ProjectData) => leaveProject(() => {
     const id = createProject(name, data);
     if (!id) return void toast('Not enough browser storage to open this file as a project. Delete projects or export some first.');
     loadProject(id);
     setTimeout(() => zoomToElements(E()), 0);
-  };
+  });
   /** Import a .draw, compatible .json or .md file as a new project (images go on the canvas) */
   const openFile = async (file: File) => {
     if (file.type.startsWith('image/')) return insertImageFile(file); // enforces its own size limit
     if (file.size > MAX_IMPORT_BYTES) return toast('That file is too large (limit 25 MB).');
     if (/\.(md|markdown|mdx|txt)$/i.test(file.name) || file.type === 'text/markdown') {
-      const els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE });
+      let els: DrawElement[];
+      try { els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE }); } catch { return toast('Could not read this Markdown file.'); }
       if (!els.length) return toast('This Markdown file is empty.');
       return openAsProject(file.name.replace(/\.(md|markdown|mdx|txt)$/i, '') || 'Markdown', { ...emptyData(), elements: els });
     }
@@ -1140,7 +1151,24 @@ export default function Editor() {
     // Web-font faces (latin-ext, cyrillic, ...) load lazily on first use; re-measure text and redraw whenever one arrives.
     const refit = () => {
       clearMarkdownCache();
-      st.current.elements = E().map((e) => (e.type === 'text' ? fitText(e) : e.type === 'markdown' ? fitMarkdown(e) : e));
+      // Only objects whose measured size changed are replaced, and history snapshots get the same treatment so undo
+      // doesn't bring back sizes measured with the fallback font.
+      const fix = (list: DrawElement[]) => {
+        let changed = false;
+        const out = list.map((el) => {
+          if (el.type !== 'text' && el.type !== 'markdown') return el;
+          const n = el.type === 'text' ? fitText(el) : fitMarkdown(el);
+          if (n.width === el.width && n.height === el.height) return el;
+          changed = true;
+          return n;
+        });
+        return changed ? out : list;
+      };
+      const h = st.current.hist;
+      const cur = st.current.elements;
+      const next = fix(cur);
+      h.stack = h.stack.map((s) => (s.elements === cur ? { ...s, elements: next } : { ...s, elements: fix(s.elements) }));
+      st.current.elements = next;
       rerender();
     };
     document.fonts?.load("24px Caveat").then(refit).catch(() => {});
@@ -1163,7 +1191,7 @@ export default function Editor() {
         else if (e.altKey && e.key.toLowerCase() === 'p') setApp({ presenting: true });
         return;
       }
-      if (a.exportOpen || a.helpOpen || a.projectsOpen || a.confirmClear) return;
+      if (a.exportOpen || a.helpOpen || a.projectsOpen || a.confirmClear || a.confirmDiscard) return;
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
       if (e.key === ' ' ) { misc.current.space = true; e.preventDefault(); if (overlayRef.current) overlayRef.current.style.cursor = 'grab'; return; }
@@ -1385,6 +1413,16 @@ export default function Editor() {
       <ContextMenu controller={ctxMenu} app={app} selected={selected} actions={actions} />
       {app.exportOpen && <ExportDialog app={app} elements={elements} selected={selected} onClose={() => setApp({ exportOpen: false })} />}
       {app.projectsOpen && <ProjectsDialog app={app} actions={actions} onClose={() => setApp({ projectsOpen: false })} />}
+      {app.confirmDiscard && (
+        <Modal title="This project couldn't be saved" width={440} onClose={() => { misc.current.pendingLeave = null; setApp({ confirmDiscard: false }); }}>
+          <p className="muted">Browser storage is full, so your latest changes exist only on screen. Download a backup before leaving, or the changes will be lost.</p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <Button className="btn" style={{ padding: '0 14px' }} onClick={() => { misc.current.pendingLeave = null; setApp({ confirmDiscard: false }); }}>Stay here</Button>
+            <Button className="btn" style={{ padding: '0 14px' }} onClick={saveFile}>Download backup (.draw)</Button>
+            <Button className="btn danger-btn" style={{ padding: '0 14px' }} onClick={() => { const go = misc.current.pendingLeave; misc.current.pendingLeave = null; setApp({ confirmDiscard: false }); go?.(); }}>Discard changes</Button>
+          </div>
+        </Modal>
+      )}
       {app.confirmClear && (
         <Modal title="Reset the canvas?" width={400} onClose={() => setApp({ confirmClear: false })}>
           <p className="muted">This removes everything in the current project. You can still undo it.</p>

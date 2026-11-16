@@ -254,6 +254,10 @@ export function groupSelect(els: DrawElement[], el: DrawElement): string[] {
 }
 
 /* ---------- import normalization (also accepts compatible JSON) ---------- */
+/** Per-field caps for untrusted scenes (shared links, imported files), so one huge field can't freeze the tab. */
+const MAX_TEXT = 200_000;
+const MAX_POINTS = 50_000;
+
 export function normalizeImported(raw: any, defaults: Style): DrawElement | null {
   if (!raw || typeof raw !== 'object' || raw.isDeleted) return null;
   const types = ['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame', 'comment', 'markdown'];
@@ -277,9 +281,11 @@ export function normalizeImported(raw: any, defaults: Style): DrawElement | null
     roundness: typeof raw.roundness === 'boolean' ? raw.roundness : !!raw.roundness,
     groupIds: Array.isArray(raw.groupIds) ? raw.groupIds : [],
     locked: !!raw.locked,
-    points: Array.isArray(raw.points) ? raw.points : el.points,
-    text: typeof raw.text === 'string' ? raw.text : typeof raw.name === 'string' ? raw.name : '',
-    thread: Array.isArray(raw.thread) ? raw.thread : undefined,
+    points: Array.isArray(raw.points) ? raw.points.slice(0, MAX_POINTS) : el.points,
+    text: (typeof raw.text === 'string' ? raw.text : typeof raw.name === 'string' ? raw.name : '').slice(0, MAX_TEXT),
+    thread: Array.isArray(raw.thread)
+      ? raw.thread.slice(0, 500).filter((c: any) => c && typeof c.text === 'string').map((c: any) => ({ text: c.text.slice(0, 5000), at: typeof c.at === 'number' ? c.at : 0 }))
+      : undefined,
     resolved: !!raw.resolved,
     fontSize: n(raw.fontSize, 20),
     fontFamily: [1, 2, 3].includes(raw.fontFamily) ? raw.fontFamily : 1,

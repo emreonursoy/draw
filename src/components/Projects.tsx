@@ -123,7 +123,7 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
             ) : (
               <div className="proj-actions">
                 <IconButton className="opt" label="Rename" onClick={() => { setEditId(p.id); setEditName(p.name); }}>{Icons.edit}</IconButton>
-                <IconButton className="opt" label="Duplicate" onClick={() => { if (!duplicateProject(p.id)) toast('Not enough browser storage to duplicate this project.'); refresh(); }}>{Icons.copy}</IconButton>
+                <IconButton className="opt" label="Duplicate" onClick={() => { const r = duplicateProject(p.id); if ('error' in r) toast(r.error === 'storage' ? 'Not enough browser storage to duplicate this project.' : 'This project could not be found, so it cannot be duplicated.'); refresh(); }}>{Icons.copy}</IconButton>
                 <IconButton className="opt" label="Export as compatible .json" onClick={() => exportOne(p.id, p.name)}>{Icons.export}</IconButton>
                 <IconButton className="opt danger" label="Delete" onClick={() => setConfirmId(p.id)}>{Icons.trash}</IconButton>
               </div>
