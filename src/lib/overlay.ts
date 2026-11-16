@@ -2,7 +2,7 @@ import type { AppState, DrawElement, Pt } from './types';
 import { commonBounds, elBounds, elCenter, elCorners, isLinear, renderPoints } from './element';
 import { rotatePt } from './utils';
 
-export const ACCENT = '#6965db';
+export const ACCENT = '#0f9f8c';
 export interface SelBox { x1: number; y1: number; x2: number; y2: number; angle: number }
 
 export function getSelBox(sel: DrawElement[]): SelBox | null {
@@ -150,7 +150,7 @@ export function renderOverlay(canvas: HTMLCanvasElement, info: OverlayInfo) {
   if (info.boxSel) {
     const b = info.boxSel;
     ctx.save();
-    ctx.fillStyle = 'rgba(105,101,219,0.1)';
+    ctx.fillStyle = 'rgba(15,159,140,0.12)';
     ctx.fillRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);
     ctx.lineWidth = 1 / z;
     ctx.strokeRect(b.x1, b.y1, b.x2 - b.x1, b.y2 - b.y1);

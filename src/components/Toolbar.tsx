@@ -46,7 +46,9 @@ const FIXED = BTN + SEP; // the lock button and its separator
 /** How many tools (from the start of the list) fit next to the lock button and the "more" button. */
 export function visibleToolCount(width: number): number {
   const flat = GROUPS.flatMap((g, gi) => g.tools.map((t, i) => ({ t, startsGroup: i === 0 && gi > 0 })));
-  const avail = width < 1000 ? width - 62 - 14 : Infinity; // minus the menu button and the screen edge
+  // Phones: the toolbar starts after the menu button. Wider screens: it is centred, so it has to clear the menu
+  // button on the left and the Library button on the right on both sides.
+  const avail = width <= 760 ? width - 62 - 14 : width - 224;
   const total = PAD + FIXED + flat.reduce((w, f) => w + BTN + (f.startsGroup ? SEP : 0), 0);
   if (total <= avail) return flat.length;
   let used = PAD + FIXED + BTN + SEP; // room kept for the "more" button

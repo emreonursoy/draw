@@ -211,7 +211,7 @@ export function drawElement(ctx: CanvasRenderingContext2D, rc: ReturnType<typeof
     const z = opts.zoom || 1, r = 13 / z;
     ctx.save();
     ctx.globalAlpha = el.resolved ? 0.45 : 1;
-    ctx.fillStyle = el.resolved ? '#868e96' : '#6965db';
+    ctx.fillStyle = el.resolved ? '#868e96' : '#0b8576';
     ctx.beginPath(); ctx.arc(el.x, el.y, r, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 / z; ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.font = `600 ${12 / z}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

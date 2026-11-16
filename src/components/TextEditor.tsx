@@ -58,7 +58,7 @@ export default function TextEditor({ el, app, dark, onCommit }: { el: DrawElemen
           textAlign: isLabel ? 'center' : el.textAlign, transform: isLabel ? 'translate(-50%, -50%)' : undefined, opacity: el.opacity / 100,
           ...(isMd ? {
             width: el.width * z, minHeight: 96, font: `${14 * z}px ${FONTS[3]}`, lineHeight: 1.5, color: '#1e1e1e', background: '#ffffff',
-            border: '2px solid #6965db', borderRadius: 10, padding: 12 * z, whiteSpace: 'pre-wrap' as const, boxShadow: '0 6px 24px rgba(0,0,0,.18)', opacity: 1,
+            border: '2px solid #0b8576', borderRadius: 10, padding: 12 * z, whiteSpace: 'pre-wrap' as const, boxShadow: '0 6px 24px rgba(0,0,0,.18)', opacity: 1,
           } : {}),
         }}
         placeholder={isMd ? '# Write Markdown…  (Esc or click outside to finish)' : undefined}
