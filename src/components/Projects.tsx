@@ -9,6 +9,7 @@ import { exportCanvas } from '@/lib/render';
 import { download } from '@/lib/utils';
 import { Icons } from './icons';
 import { Modal } from './Modal';
+import { Button, IconButton, Input, SelectField } from './ui';
 
 const load = (id: string) => {
   const d = getProject(id);
@@ -57,28 +58,25 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
   return (
     <Modal title="Projects" onClose={onClose} width={860} height="min(560px, 88vh)">
       <div className="proj-new">
-        <input value={name} placeholder="New project name" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') create(); }} />
-        <button className="btn primary" style={{ padding: '0 14px' }} onClick={create}>Create</button>
-        <button className="btn" style={{ padding: '0 14px' }} onClick={() => { actions.openFile(); onClose(); }}>Import…</button>
+        <Input className="field" aria-label="New project name" value={name} placeholder="New project name" onValueChange={setName} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') create(); }} />
+        <Button className="btn primary" style={{ padding: '0 14px' }} onClick={create}>Create</Button>
+        <Button className="btn" style={{ padding: '0 14px' }} onClick={() => { actions.openFile(); onClose(); }}>Import…</Button>
       </div>
       <div className="proj-new">
-        <input value={q} placeholder="Search projects…" onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-        <select className="select" style={{ width: 170 }} value={sort} onChange={(e) => setSort(e.target.value as any)} aria-label="Sort projects">
-          <option value="updated">Recently updated</option>
-          <option value="name">Name</option>
-        </select>
+        <Input className="field" aria-label="Search projects" value={q} placeholder="Search projects…" onValueChange={setQ} onKeyDown={(e) => e.stopPropagation()} />
+        <SelectField label="Sort projects" className="w170" value={sort} onChange={(v) => setSort(v as any)} items={[{ value: 'updated', label: 'Recently updated' }, { value: 'name', label: 'Name' }]} />
       </div>
       {!shown.length && <p className="muted">No projects match.</p>}
       <div className="proj-grid">
         {shown.map((p) => (
           <div key={p.id} className={`proj-card ${p.id === cur ? 'current' : ''}`}>
-            <button className="proj-thumb" aria-label={`Open ${p.name}`} onClick={() => { actions.switchProject(p.id); onClose(); }}>
+            <Button className="proj-thumb" aria-label={`Open ${p.name}`} onClick={() => { actions.switchProject(p.id); onClose(); }}>
               {thumbs[p.id]?.url ? <img src={thumbs[p.id].url} alt="" draggable={false} /> : <span className="muted">Empty</span>}
-            </button>
+            </Button>
             <div className="proj-meta">
               {editId === p.id ? (
-                <input
-                  className="proj-edit" autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
+                <Input
+                  className="proj-edit" aria-label="Project name" autoFocus value={editName} onValueChange={setEditName}
                   onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') { renameProject(p.id, editName); setEditId(null); refresh(); } if (e.key === 'Escape') setEditId(null); }}
                   onBlur={() => { if (editId === p.id) { renameProject(p.id, editName); setEditId(null); refresh(); } }}
                 />
@@ -91,17 +89,17 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
               <div className="proj-confirm" role="alertdialog" aria-label={`Delete ${p.name}?`}>
                 <span>Delete “{p.name}”?<br /><small>This cannot be undone.</small></span>
                 <div>
-                  <button className="btn danger-btn" style={ibtn} autoFocus onClick={() => { actions.removeProject(p.id); setConfirmId(null); refresh(); }}>Delete</button>
-                  <button className="btn" style={ibtn} onClick={() => setConfirmId(null)}>Cancel</button>
+                  <Button className="btn danger-btn" style={ibtn} autoFocus onClick={() => { actions.removeProject(p.id); setConfirmId(null); refresh(); }}>Delete</Button>
+                  <Button className="btn" style={ibtn} onClick={() => setConfirmId(null)}>Cancel</Button>
                 </div>
               </div>
             )}
             {(
               <div className="proj-actions">
-                <button className="opt" title="Rename" aria-label="Rename" onClick={() => { setEditId(p.id); setEditName(p.name); }}>{Icons.edit}</button>
-                <button className="opt" title="Duplicate" aria-label="Duplicate" onClick={() => { duplicateProject(p.id); refresh(); }}>{Icons.copy}</button>
-                <button className="opt" title="Export as compatible .json" aria-label="Export" onClick={() => exportOne(p.id, p.name)}>{Icons.export}</button>
-                <button className="opt danger" title="Delete" aria-label="Delete" onClick={() => setConfirmId(p.id)}>{Icons.trash}</button>
+                <IconButton className="opt" label="Rename" onClick={() => { setEditId(p.id); setEditName(p.name); }}>{Icons.edit}</IconButton>
+                <IconButton className="opt" label="Duplicate" onClick={() => { duplicateProject(p.id); refresh(); }}>{Icons.copy}</IconButton>
+                <IconButton className="opt" label="Export as compatible .json" onClick={() => exportOne(p.id, p.name)}>{Icons.export}</IconButton>
+                <IconButton className="opt danger" label="Delete" onClick={() => setConfirmId(p.id)}>{Icons.trash}</IconButton>
               </div>
             )}
           </div>

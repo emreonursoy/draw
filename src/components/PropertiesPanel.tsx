@@ -1,7 +1,9 @@
 'use client';
 import { useState, type ReactNode } from 'react';
 import type { AppState, DrawElement, Style } from '@/lib/types';
+import { Popover, PopoverContent, PopoverTrigger } from '@ui-sdk/react/popover';
 import { Icons } from './icons';
+import { Button, IconButton, Input, OptionGroup, SelectField, SliderField, type Choice } from './ui';
 
 const STROKES = ['#1e1e1e', '#e03131', '#2f9e44', '#1971c2', '#f08c00'];
 const BGS = ['transparent', '#ffc9c9', '#b2f2bb', '#a5d8ff', '#ffec99'];
@@ -29,49 +31,43 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
     </div>
   );
 }
-function Opt<T>({ cur, val, onPick, title, children }: { cur: T; val: T; onPick: (v: T) => void; title: string; children: ReactNode }) {
-  return (
-    <button className={`opt ${cur === val ? 'active' : ''}`} title={title} onClick={() => onPick(val)}>{children}</button>
-  );
-}
 
-function ColorPicker({ value, presets, onChange, transparent }: { value: string; presets: string[]; onChange: (c: string) => void; transparent?: boolean }) {
-  const [open, setOpen] = useState(false);
+const line = (w: number, dash?: string) => <svg width="20" height="18"><line x1="3" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth={w} strokeLinecap="round" strokeDasharray={dash} /></svg>;
+const stroke18 = (d: ReactNode, w = 1.6) => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={w} strokeLinecap="round">{d}</svg>;
+
+function ColorPicker({ value, presets, onChange, transparent, label }: { value: string; presets: string[]; onChange: (c: string) => void; transparent?: boolean; label: string }) {
   const [hex, setHex] = useState('');
   const sw = (c: string, size = 'sm') => (
-    <button
-      key={c + size} className={`swatch ${size} ${value.toLowerCase() === c ? 'active' : ''} ${c === 'transparent' ? 'transparent' : ''}`}
-      style={{ background: c === 'transparent' ? undefined : c }} title={c} onClick={() => onChange(c)}
-    />
+    <Button key={c + size} aria-label={c === 'transparent' ? 'No color' : c} className={`swatch ${size} ${value.toLowerCase() === c ? 'active' : ''} ${c === 'transparent' ? 'transparent' : ''}`} style={{ background: c === 'transparent' ? undefined : c }} onClick={() => onChange(c)} />
   );
   return (
     <div className="color-picker">
       <div className="prop-row">
         {presets.map((c) => sw(c))}
         <span className="sep" />
-        <button className="swatch sm current" style={{ background: value === 'transparent' ? undefined : value }} title="More colors" onClick={() => { setOpen(!open); setHex(value === 'transparent' ? '' : value); }}>
-          {value === 'transparent' && <span className="slash" />}
-        </button>
+        <Popover>
+          <PopoverTrigger className="swatch sm current" aria-label={`More ${label} colors`} style={{ background: value === 'transparent' ? undefined : value }} onClick={() => setHex(value === 'transparent' ? '' : value)}>
+            {value === 'transparent' && <span className="slash" />}
+          </PopoverTrigger>
+          <PopoverContent className="menu color-pop" side="right" align="start" sideOffset={10} aria-label={`${label} colors`}>
+            {transparent && <div className="color-row">{sw('transparent', 'md')}</div>}
+            {HUES.map((row, i) => <div key={i} className="color-row">{row.map((c) => sw(c, 'md'))}</div>)}
+            <div className="hex-row">
+              <span>#</span>
+              <Input
+                value={hex.replace('#', '')} maxLength={6} placeholder="hex" spellCheck={false} aria-label="Hex color" className="field"
+                onValueChange={(v: string) => { setHex('#' + v); if (/^[0-9a-f]{6}$/i.test(v)) onChange('#' + v.toLowerCase()); }}
+              />
+              <input type="color" aria-label="Pick a custom color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#000000'} onChange={(e) => { onChange(e.target.value); setHex(e.target.value); }} />
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
-      {open && (
-        <div className="color-pop">
-          {transparent && <div className="color-row">{sw('transparent', 'md')}</div>}
-          {HUES.map((row, i) => <div key={i} className="color-row">{row.map((c) => sw(c, 'md'))}</div>)}
-          <div className="hex-row">
-            <span>#</span>
-            <input
-              value={hex.replace('#', '')} maxLength={6} placeholder="hex" spellCheck={false}
-              onChange={(e) => { setHex('#' + e.target.value); if (/^[0-9a-f]{6}$/i.test(e.target.value)) onChange('#' + e.target.value.toLowerCase()); }}
-            />
-            <input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#000000'} onChange={(e) => { onChange(e.target.value); setHex(e.target.value); }} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-const HEADS = [[null, 'None'], ['arrow', 'Arrow'], ['bar', 'Bar'], ['dot', 'Dot'], ['triangle', 'Triangle']] as const;
+const HEADS = [['none', 'None'], ['arrow', 'Arrow'], ['bar', 'Bar'], ['dot', 'Dot'], ['triangle', 'Triangle']].map(([value, label]) => ({ value, label }));
 
 export default function PropertiesPanel({ app, selected, actions }: { app: AppState; selected: DrawElement[]; actions: any }) {
   const subjects: string[] = selected.length ? selected.map((e) => e.type) : [app.tool];
@@ -85,149 +81,101 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
   const many = selected.length > 1;
   const A = actions;
 
+  const fills: Choice<Style['fillStyle']>[] = (['hachure', 'cross-hatch', 'solid', 'zigzag'] as const).map((f) => ({
+    value: f, label: f.charAt(0).toUpperCase() + f.slice(1),
+    node: (
+      <svg width="18" height="18" viewBox="0 0 18 18" stroke="currentColor" strokeWidth="1.3" fill="none">
+        <rect x="2" y="2" width="14" height="14" rx="2" />
+        {f === 'hachure' && <path d="M4 14L14 4M7 15L15 7M3 10L10 3" />}
+        {f === 'cross-hatch' && <path d="M4 14L14 4M7 15L15 7M3 10L10 3M4 4l10 10M3 8l7 7M8 3l7 7" />}
+        {f === 'solid' && <rect x="2" y="2" width="14" height="14" rx="2" fill="currentColor" />}
+        {f === 'zigzag' && <path d="M3 6l3-3 3 3 3-3M3 11l3-3 3 3 3-3 3 3M5 15l3-3 3 3 3-3" />}
+      </svg>
+    ),
+  }));
+  const widths: Choice<number>[] = [[1, 'Thin'], [2, 'Bold'], [4, 'Extra bold']].map(([w, l]) => ({ value: w as number, label: l as string, node: line((w as number) + 0.5) }));
+  const dashes: Choice<Style['strokeStyle']>[] = [['solid', undefined], ['dashed', '4 3'], ['dotted', '0.5 4']].map(([s, d]) => ({ value: s as Style['strokeStyle'], label: (s as string)[0].toUpperCase() + (s as string).slice(1), node: line(2, d as string | undefined) }));
+  const rough: Choice<number>[] = [0, 1, 2].map((r) => ({
+    value: r, label: ['Architect', 'Artist', 'Cartoonist'][r],
+    node: <svg width="20" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">{r === 0 ? <path d="M2 11h16" /> : r === 1 ? <path d="M2 11c4-3 7 2 16-1" /> : <path d="M2 12c2-6 5 4 7-2s5 5 9-3" />}</svg>,
+  }));
+  const edges: Choice<boolean>[] = [
+    { value: false, label: 'Sharp', node: stroke18(<path d="M3 15V3h12" />) },
+    { value: true, label: 'Round', node: stroke18(<path d="M3 15V8a5 5 0 015-5h7" />) },
+  ];
+  const arrowTypes: Choice<Style['arrowType']>[] = (has('arrow') ? ['sharp', 'round', 'elbow'] as const : ['sharp', 'round'] as const).map((t) => ({
+    value: t, label: t[0].toUpperCase() + t.slice(1),
+    node: <svg width="20" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">{t === 'sharp' ? <path d="M3 15L10 4l7 11" /> : t === 'round' ? <path d="M3 15C5 2 15 2 17 15" /> : <path d="M3 15V9h14V3" />}</svg>,
+  }));
+  const fonts: Choice<1 | 2 | 3>[] = ([[1, 'Hand-drawn', 'Aa'], [2, 'Normal', 'Aa'], [3, 'Code', '</>']] as const).map(([f, t, g]) => ({
+    value: f as 1 | 2 | 3, label: t, node: <span style={{ fontFamily: f === 1 ? 'Caveat, cursive' : f === 2 ? 'Inter, sans-serif' : 'monospace', fontSize: 15 }}>{g}</span>,
+  }));
+  const sizes: Choice<number>[] = ([['S', 16], ['M', 20], ['L', 28], ['XL', 36]] as const).map(([l, s]) => ({ value: s, label: `${l} (${s}px)`, node: <span style={{ fontSize: 12, fontWeight: 600 }}>{l}</span> }));
+  const aligns: Choice<Style['textAlign']>[] = (['left', 'center', 'right'] as const).map((al) => ({
+    value: al, label: `Align ${al}`,
+    node: <svg width="18" height="18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">{al === 'left' ? <path d="M3 4h12M3 9h8M3 14h12" /> : al === 'center' ? <path d="M3 4h12M5 9h8M3 14h12" /> : <path d="M3 4h12M7 9h8M3 14h12" />}</svg>,
+  }));
+  const headVal = (k: 'startArrowhead' | 'endArrowhead') => String(v(k) ?? 'none');
+
   return (
     <div className="panel" onPointerDown={(e) => e.stopPropagation()}>
-      {!has('image') && (
-        <Section label="Stroke">
-          <ColorPicker value={v('strokeColor')} presets={STROKES} onChange={(c) => set({ strokeColor: c })} />
-        </Section>
-      )}
-      {has('markdown') && !shape && (
-        <Section label="Background"><ColorPicker value={v('backgroundColor')} presets={BGS} transparent onChange={(c) => set({ backgroundColor: c })} /></Section>
-      )}
-      {shape && (
-        <>
-          <Section label="Background"><ColorPicker value={v('backgroundColor')} presets={BGS} transparent onChange={(c) => set({ backgroundColor: c })} /></Section>
-          <Section label="Fill">
-            {(['hachure', 'cross-hatch', 'solid', 'zigzag'] as const).map((f) => (
-              <Opt key={f} cur={v('fillStyle')} val={f} onPick={(x) => set({ fillStyle: x })} title={f}>
-                <svg width="18" height="18" viewBox="0 0 18 18" stroke="currentColor" strokeWidth="1.3" fill="none">
-                  <rect x="2" y="2" width="14" height="14" rx="2" />
-                  {f === 'hachure' && <path d="M4 14L14 4M7 15L15 7M3 10L10 3" />}
-                  {f === 'cross-hatch' && <path d="M4 14L14 4M7 15L15 7M3 10L10 3M4 4l10 10M3 8l7 7M8 3l7 7" />}
-                  {f === 'solid' && <rect x="2" y="2" width="14" height="14" rx="2" fill="currentColor" />}
-                  {f === 'zigzag' && <path d="M3 6l3-3 3 3 3-3M3 11l3-3 3 3 3-3 3 3M5 15l3-3 3 3 3-3" />}
-                </svg>
-              </Opt>
-            ))}
-          </Section>
-        </>
-      )}
-      {(shape || lin || has('freedraw')) && (
-        <Section label="Stroke width">
-          {[1, 2, 4].map((w) => (
-            <Opt key={w} cur={v('strokeWidth')} val={w} onPick={(x) => set({ strokeWidth: x })} title={['Thin', 'Bold', 'Extra bold'][[1, 2, 4].indexOf(w)]}>
-              <svg width="20" height="18"><line x1="3" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth={w + 0.5} strokeLinecap="round" /></svg>
-            </Opt>
-          ))}
-        </Section>
-      )}
+      {!has('image') && <Section label="Stroke"><ColorPicker label="stroke" value={v('strokeColor')} presets={STROKES} onChange={(c) => set({ strokeColor: c })} /></Section>}
+      {(shape || has('markdown')) && <Section label="Background"><ColorPicker label="background" value={v('backgroundColor')} presets={BGS} transparent onChange={(c) => set({ backgroundColor: c })} /></Section>}
+      {shape && <Section label="Fill"><OptionGroup label="Fill style" value={v('fillStyle')} options={fills} onChange={(x) => set({ fillStyle: x })} /></Section>}
+      {(shape || lin || has('freedraw')) && <Section label="Stroke width"><OptionGroup label="Stroke width" value={v('strokeWidth')} options={widths} onChange={(x) => set({ strokeWidth: x })} /></Section>}
       {(shape || lin) && (
         <>
-          <Section label="Stroke style">
-            {(['solid', 'dashed', 'dotted'] as const).map((s) => (
-              <Opt key={s} cur={v('strokeStyle')} val={s} onPick={(x) => set({ strokeStyle: x })} title={s}>
-                <svg width="20" height="18"><line x1="3" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={s === 'solid' ? undefined : s === 'dashed' ? '4 3' : '0.5 4'} /></svg>
-              </Opt>
-            ))}
-          </Section>
-          <Section label="Sloppiness">
-            {[0, 1, 2].map((r) => (
-              <Opt key={r} cur={v('roughness')} val={r} onPick={(x) => set({ roughness: x })} title={['Architect', 'Artist', 'Cartoonist'][r]}>
-                <svg width="20" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  {r === 0 ? <path d="M2 11h16" /> : r === 1 ? <path d="M2 11c4-3 7 2 16-1" /> : <path d="M2 12c2-6 5 4 7-2s5 5 9-3" />}
-                </svg>
-              </Opt>
-            ))}
-          </Section>
+          <Section label="Stroke style"><OptionGroup label="Stroke style" value={v('strokeStyle')} options={dashes} onChange={(x) => set({ strokeStyle: x })} /></Section>
+          <Section label="Sloppiness"><OptionGroup label="Sloppiness" value={v('roughness')} options={rough} onChange={(x) => set({ roughness: x })} /></Section>
         </>
       )}
-      {has('rectangle', 'diamond') && (
-        <Section label="Edges">
-          <Opt cur={v('roundness')} val={false} onPick={(x) => set({ roundness: x })} title="Sharp"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 15V3h12" /></svg></Opt>
-          <Opt cur={v('roundness')} val={true} onPick={(x) => set({ roundness: x })} title="Round"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 15V8a5 5 0 015-5h7" /></svg></Opt>
-        </Section>
-      )}
-      {lin && (
-        <Section label={has('arrow') ? 'Arrow type' : 'Line type'}>
-          {(has('arrow') ? ['sharp', 'round', 'elbow'] : ['sharp', 'round']).map((t) => (
-            <Opt key={t} cur={v('arrowType')} val={t as Style['arrowType']} onPick={(x) => set({ arrowType: x })} title={t}>
-              <svg width="20" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                {t === 'sharp' ? <path d="M3 15L10 4l7 11" /> : t === 'round' ? <path d="M3 15C5 2 15 2 17 15" /> : <path d="M3 15V9h14V3" />}
-              </svg>
-            </Opt>
-          ))}
-        </Section>
-      )}
+      {has('rectangle', 'diamond') && <Section label="Edges"><OptionGroup label="Edges" value={v('roundness')} options={edges} onChange={(x) => set({ roundness: x })} /></Section>}
+      {lin && <Section label={has('arrow') ? 'Arrow type' : 'Line type'}><OptionGroup label="Arrow type" value={v('arrowType')} options={arrowTypes} onChange={(x) => set({ arrowType: x })} /></Section>}
       {has('arrow') && (
         <Section label="Arrowheads">
-          <select className="select" value={String(v('startArrowhead'))} onChange={(e) => set({ startArrowhead: e.target.value === 'null' ? null : (e.target.value as any) })}>
-            {HEADS.map(([k, l]) => <option key={String(k)} value={String(k)}>Start: {l}</option>)}
-          </select>
-          <select className="select" value={String(v('endArrowhead'))} onChange={(e) => set({ endArrowhead: e.target.value === 'null' ? null : (e.target.value as any) })}>
-            {HEADS.map(([k, l]) => <option key={String(k)} value={String(k)}>End: {l}</option>)}
-          </select>
+          <SelectField label="Start arrowhead" className="full" value={headVal('startArrowhead')} items={HEADS.map((h) => ({ ...h, label: `Start: ${h.label}` }))} onChange={(x) => set({ startArrowhead: x === 'none' ? null : (x as any) })} />
+          <SelectField label="End arrowhead" className="full" value={headVal('endArrowhead')} items={HEADS.map((h) => ({ ...h, label: `End: ${h.label}` }))} onChange={(x) => set({ endArrowhead: x === 'none' ? null : (x as any) })} />
         </Section>
       )}
       {hasText && (
         <>
-          <Section label="Font family">
-            {([[1, 'Hand-drawn', 'Aa'], [2, 'Normal', 'Aa'], [3, 'Code', '</>']] as const).map(([f, t, g]) => (
-              <Opt key={f} cur={v('fontFamily')} val={f as 1 | 2 | 3} onPick={(x) => set({ fontFamily: x })} title={t}>
-                <span style={{ fontFamily: f === 1 ? 'Caveat, cursive' : f === 2 ? 'Inter, sans-serif' : 'monospace', fontSize: 15 }}>{g}</span>
-              </Opt>
-            ))}
-          </Section>
-          <Section label="Font size">
-            {([['S', 16], ['M', 20], ['L', 28], ['XL', 36]] as const).map(([l, s]) => (
-              <Opt key={l} cur={v('fontSize')} val={s} onPick={(x) => set({ fontSize: x })} title={`${s}px`}><span style={{ fontSize: 12, fontWeight: 600 }}>{l}</span></Opt>
-            ))}
-          </Section>
-          {!subjects.every((s) => s === 'markdown') && (
-          <Section label="Text align">
-            {(['left', 'center', 'right'] as const).map((al) => (
-              <Opt key={al} cur={v('textAlign')} val={al} onPick={(x) => set({ textAlign: x })} title={al}>
-                <svg width="18" height="18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                  {al === 'left' ? <path d="M3 4h12M3 9h8M3 14h12" /> : al === 'center' ? <path d="M3 4h12M5 9h8M3 14h12" /> : <path d="M3 4h12M7 9h8M3 14h12" />}
-                </svg>
-              </Opt>
-            ))}
-          </Section>
-          )}
+          <Section label="Font family"><OptionGroup label="Font family" value={v('fontFamily')} options={fonts} onChange={(x) => set({ fontFamily: x })} /></Section>
+          <Section label="Font size"><OptionGroup label="Font size" value={v('fontSize')} options={sizes} onChange={(x) => set({ fontSize: x })} /></Section>
+          {!subjects.every((s) => s === 'markdown') && <Section label="Text align"><OptionGroup label="Text align" value={v('textAlign')} options={aligns} onChange={(x) => set({ textAlign: x })} /></Section>}
         </>
       )}
-      <Section label={`Opacity`}>
-        <input className="slider" type="range" min={0} max={100} step={10} value={v('opacity')} onChange={(e) => set({ opacity: +e.target.value })} />
+      <Section label="Opacity">
+        <SliderField label="Opacity" value={v('opacity')} min={0} max={100} step={10} onChange={(x) => set({ opacity: x })} />
         <span className="val">{v('opacity')}</span>
       </Section>
       {selected.length > 0 && (
         <>
           <Section label="Layers">
-            <button className="opt" title="Send to back (Ctrl+Shift+[)" onClick={() => A.layer('back')}>{Icons.back}</button>
-            <button className="opt" title="Send backward (Ctrl+[)" onClick={() => A.layer('backward')}>{Icons.bwd}</button>
-            <button className="opt" title="Bring forward (Ctrl+])" onClick={() => A.layer('forward')}>{Icons.fwd}</button>
-            <button className="opt" title="Bring to front (Ctrl+Shift+])" onClick={() => A.layer('front')}>{Icons.front}</button>
+            <IconButton className="opt" label="Send to back" kbd="Ctrl+Shift+[" onClick={() => A.layer('back')}>{Icons.back}</IconButton>
+            <IconButton className="opt" label="Send backward" kbd="Ctrl+[" onClick={() => A.layer('backward')}>{Icons.bwd}</IconButton>
+            <IconButton className="opt" label="Bring forward" kbd="Ctrl+]" onClick={() => A.layer('forward')}>{Icons.fwd}</IconButton>
+            <IconButton className="opt" label="Bring to front" kbd="Ctrl+Shift+]" onClick={() => A.layer('front')}>{Icons.front}</IconButton>
           </Section>
           {many && (
             <Section label="Align">
               {([['left', '⇤'], ['hcenter', '⇔'], ['right', '⇥'], ['top', '⤒'], ['vcenter', '⇕'], ['bottom', '⤓']] as const).map(([k, g]) => (
-                <button key={k} className="opt" title={`Align ${k}`} onClick={() => A.align(k)}>{g}</button>
+                <IconButton key={k} className="opt" label={`Align ${k === 'hcenter' ? 'horizontal center' : k === 'vcenter' ? 'vertical center' : k}`} onClick={() => A.align(k)}>{g}</IconButton>
               ))}
               {selected.length > 2 && (<>
-                <button className="opt" title="Distribute horizontally" onClick={() => A.distribute('h')}>⋯</button>
-                <button className="opt" title="Distribute vertically" onClick={() => A.distribute('v')}>⋮</button>
+                <IconButton className="opt" label="Distribute horizontally" onClick={() => A.distribute('h')}>⋯</IconButton>
+                <IconButton className="opt" label="Distribute vertically" onClick={() => A.distribute('v')}>⋮</IconButton>
               </>)}
             </Section>
           )}
           <Section label="Actions">
-            <button className="opt" title="Flip horizontal (Shift+H)" onClick={() => A.flip('h')}>{Icons.flipH}</button>
-            <button className="opt" title="Flip vertical (Shift+V)" onClick={() => A.flip('v')}>{Icons.flipV}</button>
-            <button className="opt" title="Duplicate (Ctrl+D)" onClick={A.duplicate}>{Icons.copy}</button>
-            {many && <button className="opt" title="Group (Ctrl+G)" onClick={A.group}>{Icons.group}</button>}
-            {selected.some((e) => e.groupIds.length) && <button className="opt" title="Ungroup (Ctrl+Shift+G)" onClick={A.ungroup}>⊟</button>}
-            <button className="opt" title="Lock (Ctrl+Shift+L)" onClick={A.toggleLock}>{Icons.lock}</button>
-            <button className="opt" title="Add to library" onClick={A.addToLibrary}>{Icons.library}</button>
-            <button className="opt danger" title="Delete (Del)" onClick={A.deleteSelected}>{Icons.trash}</button>
+            <IconButton className="opt" label="Flip horizontal" kbd="Shift+H" onClick={() => A.flip('h')}>{Icons.flipH}</IconButton>
+            <IconButton className="opt" label="Flip vertical" kbd="Shift+V" onClick={() => A.flip('v')}>{Icons.flipV}</IconButton>
+            <IconButton className="opt" label="Duplicate" kbd="Ctrl+D" onClick={A.duplicate}>{Icons.copy}</IconButton>
+            {many && <IconButton className="opt" label="Group" kbd="Ctrl+G" onClick={A.group}>{Icons.group}</IconButton>}
+            {selected.some((e) => e.groupIds.length) && <IconButton className="opt" label="Ungroup" kbd="Ctrl+Shift+G" onClick={A.ungroup}>⊟</IconButton>}
+            <IconButton className="opt" label="Lock" kbd="Ctrl+Shift+L" onClick={A.toggleLock}>{Icons.lock}</IconButton>
+            <IconButton className="opt" label="Add to library" onClick={A.addToLibrary}>{Icons.library}</IconButton>
+            <IconButton className="opt danger" label="Delete" kbd="Del" onClick={A.deleteSelected}>{Icons.trash}</IconButton>
           </Section>
         </>
       )}

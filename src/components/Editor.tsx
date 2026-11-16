@@ -21,6 +21,9 @@ import { MermaidDialog } from './MermaidDialog';
 import Presenter from './Presenter';
 import CommentPopover from './CommentPopover';
 import Toolbar from './Toolbar';
+import { Button } from './ui';
+import { createMenuController } from '@ui-sdk/react/menu';
+import { Toast, ToastRegion, ToastTitle } from '@ui-sdk/react/toast';
 import { Modal } from './Modal';
 import PropertiesPanel from './PropertiesPanel';
 import TextEditor from './TextEditor';
@@ -75,13 +78,7 @@ export default function Editor() {
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-  useEffect(() => {
-    let t: any;
-    const on = (ev: Event) => { setToastMsg((ev as CustomEvent).detail); clearTimeout(t); t = setTimeout(() => setToastMsg(null), 4500); };
-    window.addEventListener('draw:toast', on);
-    return () => window.removeEventListener('draw:toast', on);
-  }, []);
+  const ctxMenu = useRef(createMenuController()).current;
   const [library, setLibraryState] = useState<LibItem[]>([]);
 
   const A = () => st.current.app;
@@ -1055,7 +1052,8 @@ export default function Editor() {
     const hit = topHit(p);
     if (hit && !A().selectedIds[hit.id]) select(groupSelect(E(), hit));
     else if (!hit) setApp({ selectedIds: {} });
-    setApp({ contextMenu: { x: e.clientX, y: e.clientY } });
+    const { clientX: cx, clientY: cy } = e;
+    ctxMenu.open({ anchor: { getBoundingClientRect: () => ({ x: cx, y: cy, width: 0, height: 0 }) } as any });
   };
 
   /* ---------- laser animation ---------- */
@@ -1327,7 +1325,7 @@ export default function Editor() {
           <MainMenu app={app} actions={actions} />
           {!app.viewOnly && <Toolbar app={app} actions={actions} />}
           <BottomLeft app={app} actions={actions} />
-          {!app.viewOnly && <button className="lib-btn" onClick={() => setApp({ showLibrary: !app.showLibrary })} title="Library">Library</button>}
+          {!app.viewOnly && <Button className="lib-btn" onClick={() => setApp({ showLibrary: !app.showLibrary })}>Library</Button>}
         </>
       )}
       {showProps && <PropertiesPanel app={app} selected={selected} actions={actions} />}
@@ -1342,28 +1340,28 @@ export default function Editor() {
       {app.viewOnly && (
         <div className="view-badge" role="status">
           <span>{app.sharedView ? 'Shared drawing · view only' : 'View only'}</span>
-          <button className="btn" style={{ padding: '0 12px', height: 30 }} onClick={() => setApp({ presenting: true })}>Present</button>
+          <Button className="btn" style={{ padding: '0 12px', height: 30 }} onClick={() => setApp({ presenting: true })}>Present</Button>
           {app.sharedView ? (
-            <button className="btn primary" style={{ padding: '0 12px', height: 30 }} onClick={actions.editCopy}>Edit a copy</button>
+            <Button className="btn primary" style={{ padding: '0 12px', height: 30 }} onClick={actions.editCopy}>Edit a copy</Button>
           ) : (
-            <button className="btn primary" style={{ padding: '0 12px', height: 30 }} onClick={() => setApp({ viewOnly: false, tool: 'selection' })}>Exit view mode</button>
+            <Button className="btn primary" style={{ padding: '0 12px', height: 30 }} onClick={() => setApp({ viewOnly: false, tool: 'selection' })}>Exit view mode</Button>
           )}
         </div>
       )}
       {app.presenting && <Presenter app={app} elements={elements} onClose={() => setApp({ presenting: false })} />}
       {app.mermaidOpen && <MermaidDialog app={app} actions={actions} onClose={() => setApp({ mermaidOpen: false })} />}
       {app.activeComment && (() => { const c = elements.find((x) => x.id === app.activeComment); return c ? <CommentPopover key={c.id} el={c} app={app} actions={actions} /> : null; })()}
-      {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
-      {app.zen && <button className="zen-exit" onClick={() => setApp({ zen: false })}>Exit zen mode</button>}
-      {app.contextMenu && <ContextMenu app={app} selected={selected} actions={actions} />}
+      <ToastRegion className="toast-region">{() => <Toast className="toast"><ToastTitle /></Toast>}</ToastRegion>
+      {app.zen && <Button className="zen-exit" onClick={() => setApp({ zen: false })}>Exit zen mode</Button>}
+      <ContextMenu controller={ctxMenu} app={app} selected={selected} actions={actions} />
       {app.exportOpen && <ExportDialog app={app} elements={elements} selected={selected} onClose={() => setApp({ exportOpen: false })} />}
       {app.projectsOpen && <ProjectsDialog app={app} actions={actions} onClose={() => setApp({ projectsOpen: false })} />}
       {app.confirmClear && (
         <Modal title="Reset the canvas?" width={400} onClose={() => setApp({ confirmClear: false })}>
           <p className="muted">This removes everything in the current project. You can still undo it.</p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button className="btn" style={{ padding: '0 14px' }} onClick={() => setApp({ confirmClear: false })}>Cancel</button>
-            <button className="btn danger-btn" style={{ padding: '0 14px' }} onClick={clearCanvas}>Reset</button>
+            <Button className="btn" style={{ padding: '0 14px' }} onClick={() => setApp({ confirmClear: false })}>Cancel</Button>
+            <Button className="btn danger-btn" style={{ padding: '0 14px' }} onClick={clearCanvas}>Reset</Button>
           </div>
         </Modal>
       )}

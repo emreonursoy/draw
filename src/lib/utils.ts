@@ -1,3 +1,4 @@
+import { toast as sdkToast } from '@ui-sdk/react/toast';
 import type { Pt } from './types';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -45,4 +46,4 @@ export function readFileAsDataURL(file: Blob): Promise<string> {
   });
 }
 
-export const toast = (msg: string) => window.dispatchEvent(new CustomEvent('draw:toast', { detail: msg }));
+export const toast = (msg: string) => { sdkToast(msg); };

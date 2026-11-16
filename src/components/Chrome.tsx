@@ -3,6 +3,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Menu, MenuContent, MenuGroupLabel, MenuItem, MenuItemIndicator, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuTrigger } from '@ui-sdk/react/menu';
 import type { AppState, DrawElement } from '@/lib/types';
 import { exportCanvas } from '@/lib/render';
+import { Button, IconButton, Input } from './ui';
 import { Icons } from './icons';
 
 const BG_COLORS = ['#ffffff', '#f8f9fa', '#f5faff', '#fffce8', '#fdf8f6'];
@@ -82,7 +83,7 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
           </MenuRadioGroup>
         </MenuContent>
       </Menu>
-      <button className="project-pill" title="Projects" onClick={() => actions.setApp({ projectsOpen: true })}>{app.projectName}</button>
+      <Button className="project-pill" onClick={() => actions.setApp({ projectsOpen: true })}>{app.projectName}</Button>
     </div>
   );
 }
@@ -91,16 +92,16 @@ export function BottomLeft({ app, actions }: { app: AppState; actions: any }) {
   return (
     <div className="bottom-left" onPointerDown={(e) => e.stopPropagation()}>
       <div className="group-box">
-        <button className="icon-btn sm" title="Zoom out (-)" onClick={() => actions.zoomAt(app.zoom / 1.2)}>{Icons.minus}</button>
-        <button className="zoom-pct" title="Reset zoom (Shift+0)" onClick={actions.resetZoom}>{Math.round(app.zoom * 100)}%</button>
-        <button className="icon-btn sm" title="Zoom in (+)" onClick={() => actions.zoomAt(app.zoom * 1.2)}>{Icons.plus}</button>
+        <IconButton className="icon-btn sm" label="Zoom out" kbd="-" onClick={() => actions.zoomAt(app.zoom / 1.2)}>{Icons.minus}</IconButton>
+        <IconButton className="zoom-pct" label="Reset zoom" kbd="Shift+0" onClick={actions.resetZoom}>{Math.round(app.zoom * 100)}%</IconButton>
+        <IconButton className="icon-btn sm" label="Zoom in" kbd="+" onClick={() => actions.zoomAt(app.zoom * 1.2)}>{Icons.plus}</IconButton>
       </div>
       <div className="group-box">
-        <button className="icon-btn sm" title="Undo (Ctrl+Z)" disabled={!actions.canUndo} onClick={actions.undo}>{Icons.undo}</button>
-        <button className="icon-btn sm" title="Redo (Ctrl+Shift+Z)" disabled={!actions.canRedo} onClick={actions.redo}>{Icons.redo}</button>
+        <IconButton className="icon-btn sm" label="Undo" kbd="Ctrl+Z" disabled={!actions.canUndo} onClick={actions.undo}>{Icons.undo}</IconButton>
+        <IconButton className="icon-btn sm" label="Redo" kbd="Ctrl+Shift+Z" disabled={!actions.canRedo} onClick={actions.redo}>{Icons.redo}</IconButton>
       </div>
-      <button className="icon-btn sm boxed" title="Fit all (Shift+1)" onClick={actions.zoomToElements}>{Icons.frame}</button>
-      <button className="icon-btn sm boxed help" title="Help (?)" onClick={() => actions.setApp({ helpOpen: true })}>?</button>
+      <IconButton className="icon-btn sm boxed" label="Fit all" kbd="Shift+1" onClick={actions.zoomToElements}>{Icons.frame}</IconButton>
+      <IconButton className="icon-btn sm boxed help" label="Help" kbd="?" onClick={() => actions.setApp({ helpOpen: true })}>?</IconButton>
     </div>
   );
 }
@@ -122,11 +123,11 @@ export function LibraryPanel({ items, actions, onClose }: { items: LibItem[]; ac
   const shown = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="library" onPointerDown={(e) => e.stopPropagation()}>
-      <div className="library-head"><b>Library</b><button className="icon-btn sm" aria-label="Close library" onClick={onClose}>✕</button></div>
-      <input className="lib-search" placeholder="Search library…" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+      <div className="library-head"><b>Library</b><Button className="icon-btn sm" aria-label="Close library" onClick={onClose}>✕</Button></div>
+      <Input className="field lib-search" aria-label="Search library" placeholder="Search library…" value={q} onValueChange={setQ} onKeyDown={(e) => e.stopPropagation()} />
       <div className="lib-tools">
-        <button className="btn" onClick={() => fileRef.current?.click()}>Import</button>
-        <button className="btn" disabled={!items.length} onClick={actions.exportLibrary}>Export</button>
+        <Button className="btn" onClick={() => fileRef.current?.click()}>Import</Button>
+        <Button className="btn" disabled={!items.length} onClick={actions.exportLibrary}>Export</Button>
         <input ref={fileRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) actions.importLibrary(f); e.target.value = ''; }} />
       </div>
       {items.length === 0 && <p className="muted">No items yet. Select elements on the canvas and use “Add to library”.</p>}
@@ -136,15 +137,15 @@ export function LibraryPanel({ items, actions, onClose }: { items: LibItem[]; ac
           <div key={it.id} className="library-card">
             <div className="library-item" title="Click to insert" onClick={() => actions.insertLibrary(it)}>
               <Thumb items={it.elements} />
-              <button className="del" aria-label={`Remove ${it.name}`} onClick={(e) => { e.stopPropagation(); actions.deleteLibrary(it.id); }}>✕</button>
+              <Button className="del" aria-label={`Remove ${it.name}`} onClick={(e) => { e.stopPropagation(); actions.deleteLibrary(it.id); }}>✕</Button>
             </div>
             {editId === it.id ? (
-              <input
-                className="lib-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} onBlur={() => { actions.renameLibrary(it.id, name); setEditId(null); }}
+              <Input
+                className="lib-name" aria-label="Item name" autoFocus value={name} onValueChange={setName} onBlur={() => { actions.renameLibrary(it.id, name); setEditId(null); }}
                 onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
               />
             ) : (
-              <button className="lib-label" title="Rename" onClick={() => { setEditId(it.id); setName(it.name); }}>{it.name}</button>
+              <Button className="lib-label" title="Rename" onClick={() => { setEditId(it.id); setName(it.name); }}>{it.name}</Button>
             )}
           </div>
         ))}
@@ -153,44 +154,50 @@ export function LibraryPanel({ items, actions, onClose }: { items: LibItem[]; ac
   );
 }
 
-export function ContextMenu({ app, selected, actions }: { app: AppState; selected: DrawElement[]; actions: any }) {
-  const c = app.contextMenu!;
-  const run = (fn: () => void) => () => { actions.setApp({ contextMenu: null }); fn(); };
-  const it = (label: string, fn: () => void, kbd?: string) => (
-    <button className="menu-item" onClick={run(fn)}><span className="mi-label">{label}</span>{kbd && <span className="mi-kbd">{kbd}</span>}</button>
+export function ContextMenu({ controller, selected, actions, app }: { controller: any; selected: DrawElement[]; actions: any; app: AppState }) {
+  const h: Record<string, () => void> = {
+    cut: actions.cut, copy: actions.copy, paste: actions.paste, copystyle: actions.copyStyle, pastestyle: actions.pasteStyle,
+    duplicate: actions.duplicate, group: actions.group, ungroup: actions.ungroup, lock: actions.toggleLock, library: actions.addToLibrary,
+    back: () => actions.layer('back'), backward: () => actions.layer('backward'), forward: () => actions.layer('forward'), front: () => actions.layer('front'),
+    delete: actions.deleteSelected, selectall: actions.selectAll, grid: () => actions.setApp({ grid: !app.grid }), zen: () => actions.setApp({ zen: true }),
+  };
+  const it = (value: string, label: string, shortcut?: string, danger = false) => (
+    <MenuItem value={value} shortcut={shortcut} className={`menu-item ${danger ? 'danger' : ''}`}><span className="mi-label">{label}</span></MenuItem>
   );
-  const x = Math.min(c.x, app.width - 240), y = Math.min(c.y, app.height - 380);
+  const sep = <MenuSeparator className="menu-sep" />;
   return (
-    <div className="menu context" style={{ left: x, top: y }} onPointerDown={(e) => e.stopPropagation()}>
-      {selected.length ? (
-        <>
-          {it('Cut', actions.cut, 'Ctrl+X')}
-          {it('Copy', actions.copy, 'Ctrl+C')}
-          {it('Paste', actions.paste, 'Ctrl+V')}
-          {it('Copy styles', actions.copyStyle, 'Ctrl+Alt+C')}
-          {it('Paste styles', actions.pasteStyle, 'Ctrl+Alt+V')}
-          <hr />
-          {it('Duplicate', actions.duplicate, 'Ctrl+D')}
-          {selected.length > 1 && it('Group selection', actions.group, 'Ctrl+G')}
-          {selected.some((e) => e.groupIds.length > 0) && it('Ungroup selection', actions.ungroup, 'Ctrl+Shift+G')}
-          {it(selected.every((e) => e.locked) ? 'Unlock' : 'Lock', actions.toggleLock, 'Ctrl+Shift+L')}
-          {it('Add to library', actions.addToLibrary)}
-          <hr />
-          {it('Send to back', () => actions.layer('back'), 'Ctrl+Shift+[')}
-          {it('Send backward', () => actions.layer('backward'), 'Ctrl+[')}
-          {it('Bring forward', () => actions.layer('forward'), 'Ctrl+]')}
-          {it('Bring to front', () => actions.layer('front'), 'Ctrl+Shift+]')}
-          <hr />
-          {it('Delete', actions.deleteSelected, 'Del')}
-        </>
-      ) : (
-        <>
-          {it('Paste', actions.paste, 'Ctrl+V')}
-          {it('Select all', actions.selectAll, 'Ctrl+A')}
-          {it(app.grid ? 'Hide grid' : 'Show grid', () => actions.setApp({ grid: !app.grid }), "Ctrl+'")}
-          {it('Zen mode', () => actions.setApp({ zen: true }), 'Alt+Z')}
-        </>
-      )}
-    </div>
+    <Menu controller={controller} onAction={(v: string) => h[v]?.()}>
+      <MenuContent className="menu context" aria-label="Canvas actions">
+        {selected.length ? (
+          <>
+            {it('cut', 'Cut', 'mod+x')}
+            {it('copy', 'Copy', 'mod+c')}
+            {it('paste', 'Paste', 'mod+v')}
+            {it('copystyle', 'Copy styles', 'mod+alt+c')}
+            {it('pastestyle', 'Paste styles', 'mod+alt+v')}
+            {sep}
+            {it('duplicate', 'Duplicate', 'mod+d')}
+            {selected.length > 1 && it('group', 'Group selection', 'mod+g')}
+            {selected.some((e) => e.groupIds.length > 0) && it('ungroup', 'Ungroup selection', 'mod+shift+g')}
+            {it('lock', selected.every((e) => e.locked) ? 'Unlock' : 'Lock', 'mod+shift+l')}
+            {it('library', 'Add to library')}
+            {sep}
+            {it('back', 'Send to back', 'mod+shift+[')}
+            {it('backward', 'Send backward', 'mod+[')}
+            {it('forward', 'Bring forward', 'mod+]')}
+            {it('front', 'Bring to front', 'mod+shift+]')}
+            {sep}
+            {it('delete', 'Delete', 'Delete', true)}
+          </>
+        ) : (
+          <>
+            {it('paste', 'Paste', 'mod+v')}
+            {it('selectall', 'Select all', 'mod+a')}
+            {it('grid', app.grid ? 'Hide grid' : 'Show grid', "mod+'")}
+            {it('zen', 'Zen mode', 'alt+z')}
+          </>
+        )}
+      </MenuContent>
+    </Menu>
   );
 }

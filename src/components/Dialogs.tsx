@@ -5,6 +5,7 @@ import { exportCanvas, exportSVG } from '@/lib/render';
 import { orderedFrames } from '@/lib/element';
 import { download, toast } from '@/lib/utils';
 import { Modal } from './Modal';
+import { Button, CheckField, OptionGroup, SelectField } from './ui';
 
 export function ExportDialog({ app, elements, selected, onClose }: { app: AppState; elements: DrawElement[]; selected: DrawElement[]; onClose: () => void }) {
   const [bg, setBg] = useState(true);
@@ -57,23 +58,18 @@ export function ExportDialog({ app, elements, selected, onClose }: { app: AppSta
           {url ? <img src={url} alt="preview" /> : <p className="muted">Nothing to export</p>}
         </div>
         <div className="export-opts">
-          {selected.length > 0 && <label><input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} /> Only selected</label>}
-          <label><input type="checkbox" checked={bg} onChange={(e) => setBg(e.target.checked)} /> Background</label>
-          <label><input type="checkbox" checked={dark} onChange={(e) => setDark(e.target.checked)} /> Dark mode</label>
-          <div className="scale-row">Scale {[1, 2, 3].map((s) => <button key={s} className={`opt ${scale === s ? 'active' : ''}`} onClick={() => setScale(s)}>{s}×</button>)}</div>
+          {selected.length > 0 && <CheckField checked={only} onChange={setOnly}>Only selected</CheckField>}
+          <CheckField checked={bg} onChange={setBg}>Background</CheckField>
+          <CheckField checked={dark} onChange={setDark}>Dark mode</CheckField>
+          <div className="scale-row"><span>Scale</span><OptionGroup label="Export scale" value={scale} onChange={setScale} options={[1, 2, 3].map((n) => ({ value: n, label: `${n}×`, node: `${n}×` }))} /></div>
           <div className="export-btns">
-            <button className="btn primary" disabled={!url} onClick={png}>Export to PNG</button>
-            <button className="btn primary" disabled={!url} onClick={svg}>Export to SVG</button>
+            <Button className="btn primary" disabled={!url} onClick={png}>Export to PNG</Button>
+            <Button className="btn primary" disabled={!url} onClick={svg}>Export to SVG</Button>
             {frames.length > 0 && (
-              <label>PDF pages
-                <select className="select" style={{ marginLeft: 8, width: 130 }} value={pdfMode} onChange={(e) => setPdfMode(e.target.value as any)}>
-                  <option value="frames">One per frame ({frames.length})</option>
-                  <option value="scene">Whole scene</option>
-                </select>
-              </label>
+              <div className="scale-row"><span>PDF pages</span><SelectField label="PDF pages" className="w170" value={pdfMode} onChange={(v) => setPdfMode(v as any)} items={[{ value: 'frames', label: `One per frame (${frames.length})` }, { value: 'scene', label: 'Whole scene' }]} /></div>
             )}
-            <button className="btn primary" disabled={!url} onClick={pdf}>Export to PDF</button>
-            <button className="btn" disabled={!url} onClick={copy}>Copy PNG to clipboard</button>
+            <Button className="btn primary" disabled={!url} onClick={pdf}>Export to PDF</Button>
+            <Button className="btn" disabled={!url} onClick={copy}>Copy PNG to clipboard</Button>
           </div>
         </div>
       </div>

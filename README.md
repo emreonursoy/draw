@@ -2,7 +2,7 @@
 
 A virtual whiteboard for sketching hand-drawn style diagrams. Everything runs in your browser: no account, no server, no tracking. Your work is stored locally and can be exported at any time.
 
-Built with [Next.js](https://nextjs.org), [React](https://react.dev), [roughjs](https://roughjs.com) for the sketchy look, [perfect-freehand](https://github.com/steveruizok/perfect-freehand) for the pen, [jsPDF](https://github.com/parallax/jsPDF) for PDF export and [UI SDK](https://github.com/vercel-labs/ui) for accessible menus, dialogs, toolbar and tooltips.
+Built with [Next.js](https://nextjs.org), [React](https://react.dev), [roughjs](https://roughjs.com) for the sketchy look, [perfect-freehand](https://github.com/steveruizok/perfect-freehand) for the pen, [jsPDF](https://github.com/parallax/jsPDF) for PDF export and [UI SDK](https://github.com/vercel-labs/ui) for every interactive control: buttons, toolbar, menus and context menu, dialogs, popovers, selects, sliders, checkboxes, toggle groups, tooltips and toasts (see `src/components/ui.tsx`).
 
 ## Getting started
 

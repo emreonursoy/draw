@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AppState, DrawElement } from '@/lib/types';
 import { frameChildren, orderedFrames } from '@/lib/element';
 import { DARK_FILTER, renderScene } from '@/lib/render';
+import { Button } from './ui';
 
 export default function Presenter({ app, elements, onClose }: { app: AppState; elements: DrawElement[]; onClose: () => void }) {
   const frames = orderedFrames(elements);
@@ -64,10 +65,10 @@ export default function Presenter({ app, elements, onClose }: { app: AppState; e
     <div className="presenter" onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setIdx((i) => (e.clientX - r.left < r.width * 0.3 ? Math.max(0, i - 1) : Math.min(n - 1, i + 1))); }}>
       <canvas ref={ref} style={{ width: cw, height: ch, filter: app.theme === 'dark' ? DARK_FILTER : undefined, borderRadius: 4 }} />
       <div className="presenter-bar" onClick={(e) => e.stopPropagation()}>
-        <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} aria-label="Previous slide">‹</button>
+        <Button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} aria-label="Previous slide">‹</Button>
         <span>{Math.min(idx, n - 1) + 1} / {n}{f?.text ? ` · ${f.text}` : ''}</span>
-        <button onClick={() => setIdx((i) => Math.min(n - 1, i + 1))} disabled={idx >= n - 1} aria-label="Next slide">›</button>
-        <button onClick={onClose} aria-label="Exit presentation">Exit</button>
+        <Button onClick={() => setIdx((i) => Math.min(n - 1, i + 1))} disabled={idx >= n - 1} aria-label="Next slide">›</Button>
+        <Button onClick={onClose} aria-label="Exit presentation">Exit</Button>
       </div>
     </div>
   );
