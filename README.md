@@ -74,6 +74,7 @@ Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not r
 - Mermaid to diagram: flowcharts and sequence diagrams
 - **Markdown blocks:** write Markdown directly on the canvas (`M` tool, or paste Markdown text). Blocks render headings, bold/italic/strike, inline code, links, task and nested lists, quotes, code fences and tables, re-wrap when resized, and reopen as raw Markdown on double-click
 - **Markdown files:** import `.md` files (headings, paragraphs, lists, task lists, quotes, tables, code blocks, rules and ```mermaid blocks become canvas elements) and export the scene or selection as `.md`, with diagrams written back as Mermaid
+- **Sidebar** (the button at the top right): a library tab, a search tab and a comments tab. Search (`Ctrl/Cmd+F`) looks through text, shape labels, frame names, Markdown blocks, embed links and comments, highlights every match on the canvas, and jumps between them with Enter / Shift+Enter or the arrows. The comments tab lists every thread (filter all, open or resolved), jumps to one and opens it, and can resolve or reopen it
 - Personal library with search, rename and import/export
 - Image import quality setting: original, high (max 4K) or compressed (max 1600px)
 
@@ -87,6 +88,7 @@ Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not r
 | Duplicate | `Ctrl/Cmd+D` |
 | Group / ungroup | `Ctrl/Cmd+G` / `Ctrl/Cmd+Shift+G` |
 | Present frames | `Alt+P` |
+| Find on canvas | `Ctrl/Cmd+F` |
 | Export dialog | `Ctrl/Cmd+Shift+E` |
 | Save / open | `Ctrl/Cmd+S` / `Ctrl/Cmd+O` |
 | Dark mode | `Shift+Alt+D` |
@@ -98,6 +100,7 @@ Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not r
 src/
   app/            Next.js app router (layout, page, global styles)
   components/     Editor, toolbar, properties panel, menus, dialogs, presenter
+    Sidebar.tsx   Library, search and comments tabs
     ui.tsx        App-styled wrappers around UI SDK parts (buttons, selects, sliders, toggles...)
   lib/
     element.ts    Element model, bounds, hit testing, arrow bindings
@@ -111,6 +114,7 @@ src/
     fill.ts       Flood fill: area detection and contour tracing
     embed.ts      Safe URLs for embedded pages
     mdrender.ts   Markdown block layout and canvas rendering
+    search.ts     Canvas text search and comment list
     share.ts      Compressed share-link encoding
     image.ts      Image resize / recompress on import
 ```

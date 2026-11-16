@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { AppState, DrawElement, Pt, Style, ToolType } from '@/lib/types';
+import type { AppState, DrawElement, Pt, SidebarTab, Style, ToolType } from '@/lib/types';
 import { DEFAULT_STYLE } from '@/lib/types';
 import {
   absPoints, canHaveLabel, commonBounds, elAABB, elBounds, elCenter, findBindTarget, fitText,
@@ -34,7 +34,9 @@ import { Modal } from './Modal';
 import PropertiesPanel from './PropertiesPanel';
 import TextEditor from './TextEditor';
 import { ExportDialog, HelpDialog } from './Dialogs';
-import { MainMenu, BottomLeft, LibraryPanel, ContextMenu, type LibItem } from './Chrome';
+import { MainMenu, BottomLeft, ContextMenu, type LibItem } from './Chrome';
+import { Sidebar } from './Sidebar';
+import { searchElements, type SearchHit } from '@/lib/search';
 
 type Drag =
   | { kind: 'pan'; sx: number; sy: number; scrollX: number; scrollY: number }
@@ -60,7 +62,7 @@ const TOOL_KEYS: Record<string, ToolType> = {
 
 const initialApp = (): AppState => ({
   tool: 'selection', toolLocked: false, scrollX: 0, scrollY: 0, zoom: 1, selectedIds: {}, theme: 'light', viewBg: '#ffffff',
-  grid: false, zen: false, style: { ...DEFAULT_STYLE }, editing: null, width: 1200, height: 800, showLibrary: false,
+  grid: false, zen: false, style: { ...DEFAULT_STYLE }, editing: null, width: 1200, height: 800, showLibrary: false, sidebarTab: 'library', search: '', searchIdx: 0,
   exportOpen: false, helpOpen: false, menuOpen: false, contextMenu: null, projectsOpen: false, projectName: 'Untitled', confirmClear: false, confirmDiscard: false, embedDialog: null, embedConfirm: null, loadedEmbeds: {}, activeEmbed: null, shapeAssist: true,
   presenting: false, viewOnly: false, sharedView: false, activeComment: null, mermaidOpen: false, imageMode: 'high', fileLink: null,
 });
@@ -78,7 +80,7 @@ export default function Editor() {
   const misc = useRef({
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
-    laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
+    hl: { ids: [] as string[], cur: null as string | null }, laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
     styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, fileProjectId: '' as string, lastLinked: '' as string, holdT: 0, embedAt: null as Pt | null, linkSig: null as null | { els: DrawElement[]; bg: string; grid: boolean }, linkQueue: Promise.resolve() as Promise<void>, dropped: [] as { after: string | null; raw: unknown }[], shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
@@ -153,6 +155,34 @@ export default function Editor() {
     const z = clamp(Math.min(a.width / (x2 - x1 + pad * 2), a.height / (y2 - y1 + pad * 2)), 0.1, maxZ);
     setApp({ zoom: z, scrollX: a.width / 2 / z - (x1 + x2) / 2, scrollY: a.height / 2 / z - (y1 + y2) / 2 });
   };
+
+  /** Scrolls (and, if needed, zooms out) so an element sits in the visible part of the canvas, beside the sidebar. */
+  const revealElement = (id: string, patch: Partial<AppState> = {}) => {
+    const el = E().find((x) => x.id === id);
+    if (!el) return setApp(patch);
+    const a = A();
+    const viewW = a.width - (a.showLibrary && a.width > 760 ? 330 : 0);
+    const [x1, y1, x2, y2] = commonBounds([el]);
+    const pad = 60;
+    const fit = clamp(Math.min(viewW / (x2 - x1 + pad * 2), a.height / (y2 - y1 + pad * 2)), 0.1, 30);
+    const z = Math.min(a.zoom, fit);
+    setApp({ ...patch, zoom: z, scrollX: viewW / 2 / z - (x1 + x2) / 2, scrollY: a.height / 2 / z - (y1 + y2) / 2 });
+  };
+  const openSidebar = (tab: SidebarTab) => {
+    setApp({ showLibrary: true, sidebarTab: tab });
+    if (tab === 'search') setTimeout(() => { const i = document.getElementById('sidebar-search') as HTMLInputElement | null; i?.focus(); i?.select(); }, 30);
+  };
+  const setSearch = (q: string) => {
+    const first = searchElements(E(), q)[0];
+    if (first) revealElement(first.id, { search: q, searchIdx: 0 });
+    else setApp({ search: q, searchIdx: 0 });
+  };
+  const goToSearch = (i: number) => {
+    const h = searchElements(E(), A().search)[i];
+    if (!h) return;
+    revealElement(h.id, { searchIdx: i, selectedIds: { [h.id]: true }, activeComment: h.type === 'comment' ? h.id : null });
+  };
+  const openComment = (id: string) => revealElement(id, { activeComment: id, selectedIds: {} });
 
   /* ---------- tools ---------- */
   const setTool = (t: ToolType) => {
@@ -338,7 +368,7 @@ export default function Editor() {
     const s = sel();
     if (!s.length) return;
     setLibrary([{ id: uid(), name: `Item ${misc.current.lib.length + 1}`, elements: cloneElements(s, 0, 0) }, ...misc.current.lib]);
-    setApp({ showLibrary: true });
+    setApp({ showLibrary: true, sidebarTab: 'library' });
   };
 
   /* ---------- sharing & linked file ---------- */
@@ -531,7 +561,7 @@ export default function Editor() {
     setCurrentId(id);
     st.current.elements = els;
     st.current.hist = { stack: [{ elements: els, sel: {} }], idx: 0 };
-    setApp({ loadedEmbeds: {}, activeEmbed: null, embedConfirm: null, selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
+    setApp({ search: '', searchIdx: 0, loadedEmbeds: {}, activeEmbed: null, embedConfirm: null, selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
   };
   const switchProject = (id: string) => leaveProject(() => loadProject(id));
   const newProject = (name: string) => leaveProject(() => {
@@ -1307,8 +1337,8 @@ export default function Editor() {
     const c = overlayRef.current;
     if (!c) return;
     renderOverlay(c, {
-      app: A(), selected: sel(), boxSel: misc.current.boxSel, hoverBind: misc.current.hoverBind,
-      laser: misc.current.laser, dpr: window.devicePixelRatio || 1,
+      app: A(), selected: sel(), elements: E(), boxSel: misc.current.boxSel, hoverBind: misc.current.hoverBind,
+      highlight: misc.current.hl, laser: misc.current.laser, dpr: window.devicePixelRatio || 1,
     });
   };
   useEffect(() => { drawScene(); drawOverlay(); });
@@ -1391,6 +1421,7 @@ export default function Editor() {
       const a = A();
       if (isTyping(e.target)) return;
       if (a.presenting || a.mermaidOpen) return;
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f' && !(a.exportOpen || a.helpOpen || a.projectsOpen || a.confirmClear || a.confirmDiscard || a.embedDialog || a.embedConfirm)) { e.preventDefault(); openSidebar('search'); return; }
       if (a.viewOnly) {
         if (e.key === 'Escape') { if (!a.sharedView) setApp({ viewOnly: false, tool: 'selection' }); }
         else if (e.key === '+' || e.key === '=') zoomAt(a.zoom * 1.1);
@@ -1531,6 +1562,9 @@ export default function Editor() {
 
   /* ---------- render ---------- */
   const selected = useMemo(() => elements.filter((e) => app.selectedIds[e.id]), [elements, app.selectedIds]);
+  const searchOpen = app.showLibrary && !app.zen && app.sidebarTab === 'search';
+  const searchHits: SearchHit[] = useMemo(() => (searchOpen ? searchElements(elements, app.search) : []), [searchOpen, elements, app.search]);
+  misc.current.hl = { ids: searchHits.map((h) => h.id), cur: searchHits[Math.min(app.searchIdx, searchHits.length - 1)]?.id ?? null };
   const dark = app.theme === 'dark';
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
   const baseCursor = app.tool === 'hand' ? 'grab' : app.tool === 'selection' ? undefined : app.tool === 'eraser' ? 'cell' : (app.tool === 'text' || app.tool === 'markdown') ? 'text' : 'crosshair';
@@ -1563,7 +1597,7 @@ export default function Editor() {
       } catch { toast('Could not read this library file.'); }
     },
     insertMermaid: (els: DrawElement[]) => addElements(els, viewCenter()),
-    copyShareLink, editCopy, linkSaveFile, linkOpenFile, unlinkFile, convertToShape, editEmbed, unloadEmbed, requestLoadEmbed,
+    copyShareLink, editCopy, linkSaveFile, linkOpenFile, unlinkFile, convertToShape, editEmbed, unloadEmbed, requestLoadEmbed, openSidebar, setSearch, goToSearch, openComment,
     toggleShapeAssist: () => { const on = !A().shapeAssist; setApp({ shapeAssist: on }); try { localStorage.setItem('draw:shapeAssist', on ? '1' : '0'); } catch {} },
     addComment: (id: string, text: string) => { setEls(E().map((e) => (e.id === id ? { ...e, thread: [...(e.thread || []), { text, at: Date.now() }] } : e))); commit(); },
     toggleResolve: (id: string) => { setEls(E().map((e) => (e.id === id ? { ...e, resolved: !e.resolved } : e))); commit(); setApp({ activeComment: null }); },
@@ -1595,11 +1629,11 @@ export default function Editor() {
           <MainMenu app={app} actions={actions} />
           {!app.viewOnly && <Toolbar app={app} actions={actions} />}
           <BottomLeft app={app} actions={actions} />
-          {!app.viewOnly && <Button className="lib-btn" onClick={() => setApp({ showLibrary: !app.showLibrary })}>Library</Button>}
+          <Button className="lib-btn" aria-expanded={app.showLibrary} onClick={() => setApp({ showLibrary: !app.showLibrary })}>Sidebar</Button>
         </>
       )}
       {showProps && <PropertiesPanel app={app} selected={selected} actions={actions} />}
-      {app.showLibrary && !app.zen && <LibraryPanel items={library} actions={actions} onClose={() => setApp({ showLibrary: false })} />}
+      {app.showLibrary && !app.zen && <Sidebar app={app} elements={elements} library={library} hits={searchHits} actions={actions} />}
       {elements.length === 0 && !app.editing && app.tool === 'selection' && (
         <div className="welcome">
           <div className="welcome-logo">draw</div>

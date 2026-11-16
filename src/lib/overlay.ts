@@ -45,8 +45,11 @@ export function hitHandle(b: SelBox, p: Pt, zoom: number, singleLinear: boolean)
 export interface OverlayInfo {
   app: AppState;
   selected: DrawElement[];
+  elements: DrawElement[];
   boxSel: { x1: number; y1: number; x2: number; y2: number } | null;
   hoverBind: DrawElement | null;
+  /** Elements matching the sidebar search, and the one currently being looked at. */
+  highlight: { ids: string[]; cur: string | null };
   laser: [number, number, number][];
   dpr: number;
 }
@@ -62,6 +65,26 @@ export function renderOverlay(canvas: HTMLCanvasElement, info: OverlayInfo) {
   ctx.lineWidth = 1.5 / z;
   ctx.strokeStyle = ACCENT;
   ctx.fillStyle = '#fff';
+
+  if (info.highlight.ids.length) {
+    const byId = new Set(info.highlight.ids);
+    ctx.save();
+    ctx.lineJoin = 'round';
+    for (const e of info.elements) {
+      if (!byId.has(e.id)) continue;
+      const cur = e.id === info.highlight.cur;
+      const cs = elCorners(e);
+      ctx.beginPath();
+      cs.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+      ctx.closePath();
+      ctx.fillStyle = cur ? 'rgba(255, 196, 0, 0.42)' : 'rgba(255, 214, 51, 0.26)';
+      ctx.strokeStyle = cur ? '#e8a600' : 'rgba(232, 166, 0, 0.75)';
+      ctx.lineWidth = (cur ? 3 : 1.5) / z;
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   if (info.hoverBind) {
     const e = info.hoverBind;

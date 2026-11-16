@@ -7,6 +7,8 @@ export type Arrowhead = null | 'arrow' | 'bar' | 'dot' | 'triangle';
 export type ArrowType = 'sharp' | 'round' | 'elbow';
 export type TextAlign = 'left' | 'center' | 'right';
 
+export type SidebarTab = 'library' | 'search' | 'comments';
+
 export interface Style {
   strokeColor: string;
   backgroundColor: string;
@@ -63,7 +65,11 @@ export interface AppState {
   editing: { id: string; isNew: boolean } | null;
   width: number;
   height: number;
+  /** The right sidebar (library, search, comments) is open. */
   showLibrary: boolean;
+  sidebarTab: SidebarTab;
+  search: string;
+  searchIdx: number;
   exportOpen: boolean;
   helpOpen: boolean;
   menuOpen: boolean;

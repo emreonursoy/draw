@@ -26,6 +26,8 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
     mermaid: () => actions.setApp({ mermaidOpen: true }),
     embed: () => actions.setApp({ embedDialog: { id: null } }),
     shapeassist: actions.toggleShapeAssist,
+    find: () => actions.openSidebar('search'),
+    comments: () => actions.openSidebar('comments'),
     view: () => actions.setApp({ viewOnly: true, tool: 'hand', selectedIds: {} }),
     share: actions.copyShareLink,
     linkopen: actions.linkOpenFile,
@@ -53,6 +55,8 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
           {it('reset', Icons.clear, 'Reset the canvas')}
           <MenuSeparator className="menu-sep" />
           {it('present', Icons.frameTool, 'Present frames', 'alt+p')}
+          {it('find', Icons.library, 'Find on canvas', 'mod+f')}
+          {it('comments', Icons.comment, 'Comments')}
           {it('mermaid', Icons.comment, 'Mermaid to diagram…')}
           {it('embed', Icons.embed, 'Embed a web page…')}
           {it('shapeassist', Icons.shapeConvert, app.shapeAssist ? 'Shape snapping: on (hold pen to snap)' : 'Shape snapping: off')}
@@ -119,15 +123,22 @@ function Thumb({ items }: { items: DrawElement[] }) {
 
 export interface LibItem { id: string; name: string; elements: DrawElement[] }
 
-export function LibraryPanel({ items, actions, onClose }: { items: LibItem[]; actions: any; onClose: () => void }) {
+export interface LibraryActions {
+  exportLibrary: () => void;
+  importLibrary: (f: File) => void;
+  insertLibrary: (item: LibItem) => void;
+  deleteLibrary: (id: string) => void;
+  renameLibrary: (id: string, name: string) => void;
+}
+
+export function LibraryTab({ items, actions }: { items: LibItem[]; actions: LibraryActions }) {
   const [q, setQ] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const pick = useRef(createFileInputController()).current;
   const shown = items.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
   return (
-    <div className="library" onPointerDown={(e) => e.stopPropagation()}>
-      <div className="library-head"><b>Library</b><Button className="icon-btn sm" aria-label="Close library" onClick={onClose}>✕</Button></div>
+    <>
       <Input className="field lib-search" aria-label="Search library" placeholder="Search library…" value={q} onValueChange={setQ} onKeyDown={(e) => e.stopPropagation()} />
       <div className="lib-tools">
         <Button className="btn" onClick={() => pick.open()}>Import</Button>
@@ -154,7 +165,7 @@ export function LibraryPanel({ items, actions, onClose }: { items: LibItem[]; ac
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 

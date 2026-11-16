@@ -43,6 +43,20 @@ export function OptionGroup<T extends string | number | boolean | null>({ value,
   );
 }
 
+/** A row of text tabs (single choice, never empty). */
+export function TabBar<T extends string>({ value, tabs, onChange, label }: { value: T; tabs: { value: T; label: string; badge?: number }[]; onChange: (v: T) => void; label: string }) {
+  return (
+    <ToggleGroup value={[value]} deselectable={false} aria-label={label} className="tab-bar" onValueChange={(vals) => {
+      const hit = tabs.find((t) => t.value === vals[0]);
+      if (hit) onChange(hit.value);
+    }}>
+      {tabs.map((t) => (
+        <Toggle key={t.value} value={t.value} className="tab">{t.label}{t.badge ? <span className="tab-badge">{t.badge}</span> : null}</Toggle>
+      ))}
+    </ToggleGroup>
+  );
+}
+
 export function SelectField({ value, onChange, items, label, className }: { value: string; onChange: (v: string) => void; items: { value: string; label: string }[]; label: string; className?: string }) {
   return (
     <Select items={items} value={value} onValueChange={(v: any) => v != null && onChange(String(v))}>
