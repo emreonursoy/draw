@@ -158,6 +158,9 @@ export function layoutMarkdown(el: Pick<DrawElement, 'text' | 'width' | 'fontSiz
   return out;
 }
 
+/** Layouts depend on font metrics, so drop them when web fonts finish loading. */
+export const clearMarkdownCache = () => cache.clear();
+
 export function fitMarkdown(el: DrawElement): DrawElement {
   const l = layoutMarkdown(el);
   return { ...el, height: l.height + MD_PAD * 2 };

@@ -6,7 +6,7 @@ import { duplicateProject, getProject, listProjects, renameProject } from '@/lib
 import { exportInterchange } from '@/lib/interchange';
 import { commonBounds, normalizeImported } from '@/lib/element';
 import { exportCanvas } from '@/lib/render';
-import { download } from '@/lib/utils';
+import { download, toast } from '@/lib/utils';
 import { Icons } from './icons';
 import { Modal } from './Modal';
 import { Button, IconButton, Input, SelectField } from './ui';
@@ -123,7 +123,7 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
             ) : (
               <div className="proj-actions">
                 <IconButton className="opt" label="Rename" onClick={() => { setEditId(p.id); setEditName(p.name); }}>{Icons.edit}</IconButton>
-                <IconButton className="opt" label="Duplicate" onClick={() => { duplicateProject(p.id); refresh(); }}>{Icons.copy}</IconButton>
+                <IconButton className="opt" label="Duplicate" onClick={() => { if (!duplicateProject(p.id)) toast('Not enough browser storage to duplicate this project.'); refresh(); }}>{Icons.copy}</IconButton>
                 <IconButton className="opt" label="Export as compatible .json" onClick={() => exportOne(p.id, p.name)}>{Icons.export}</IconButton>
                 <IconButton className="opt danger" label="Delete" onClick={() => setConfirmId(p.id)}>{Icons.trash}</IconButton>
               </div>

@@ -14,7 +14,7 @@ import { createProject, deleteProject, emptyData, ensureCurrent, getProject, lis
 import { exportInterchange, importInterchange, isInterchangeData } from '@/lib/interchange';
 import { ProjectsDialog } from './Projects';
 import { parseMarkdown, toMarkdown } from '@/lib/markdown';
-import { fitMarkdown } from '@/lib/mdrender';
+import { clearMarkdownCache, fitMarkdown } from '@/lib/mdrender';
 import { processImage } from '@/lib/image';
 import { decodeScene, encodeScene, MAX_LINK_CHARS } from '@/lib/share';
 import { MermaidDialog } from './MermaidDialog';
@@ -73,7 +73,7 @@ export default function Editor() {
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
     laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
-    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, fileHandle: null as any, shared: null as any, saveT: 0, projectId: '' as string,
+    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, fileHandle: null as any, shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -347,11 +347,10 @@ export default function Editor() {
   const editCopy = () => {
     const s = misc.current.shared;
     if (!s) return;
-    misc.current.shared = null;
     const id = createProject('Shared drawing copy', { ...emptyData(), elements: s.elements, viewBg: s.viewBg });
-    history.replaceState(null, '', location.pathname);
-    loadProject(id);
-    setApp({ viewOnly: false, sharedView: false, tool: 'selection' });
+    if (!id) return toast('Not enough browser storage to save a copy. Delete projects or export some first.');
+    loadProject(id); // also leaves the shared view and clears the link
+    setApp({ tool: 'selection' });
     setTimeout(() => zoomToElements(E()), 0);
   };
   const writeLinked = async () => {
@@ -434,7 +433,10 @@ export default function Editor() {
   };
   const saveNow = () => {
     if (!misc.current.projectId) return;
+    // after a failed write, only retry every 10 s instead of re-serialising the scene on every tick
+    if (misc.current.saveWarned && Date.now() - misc.current.lastFail < 10_000) return;
     if (saveProject(misc.current.projectId, snapshot())) { misc.current.saveWarned = false; return; }
+    misc.current.lastFail = Date.now();
     if (!misc.current.saveWarned) { misc.current.saveWarned = true; toast('Browser storage is full, so this project is not being saved. Export it as a file or delete other projects.'); }
   };
   const loadProject = (id: string) => {
@@ -445,37 +447,47 @@ export default function Editor() {
     setCurrentId(id);
     st.current.elements = els;
     st.current.hist = { stack: [{ elements: els, sel: {} }], idx: 0 };
-    setApp({ selectedIds: {}, editing: null, viewOnly: false, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
+    setApp({ selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
   };
   const switchProject = (id: string) => { finishMulti(true, true); saveNow(); loadProject(id); };
-  const newProject = (name: string) => { finishMulti(true, true); saveNow(); loadProject(createProject(name)); };
+  const newProject = (name: string) => {
+    finishMulti(true, true);
+    saveNow();
+    const id = createProject(name);
+    if (!id) return toast('Not enough browser storage to create a project. Delete projects or export some first.');
+    loadProject(id);
+  };
   const removeProject = (id: string) => {
     const cur = id === misc.current.projectId;
     if (cur) misc.current.projectId = '';
     deleteProject(id);
     if (cur) {
       const next = listProjects()[0];
-      loadProject(next ? next.id : createProject('Untitled'));
+      loadProject(next ? next.id : createProject('Untitled') ?? '');
     }
   };
   const refreshName = () => setApp({ projectName: listProjects().find((p) => p.id === misc.current.projectId)?.name ?? 'Untitled' });
-  /** Import a .draw or compatible .json file as a new project */
+  /** Creates a project from imported data and opens it; reports when browser storage can't hold it. */
+  const openAsProject = (name: string, data: ProjectData) => {
+    finishMulti(true, true);
+    saveNow();
+    const id = createProject(name, data);
+    if (!id) return void toast('Not enough browser storage to open this file as a project. Delete projects or export some first.');
+    loadProject(id);
+    setTimeout(() => zoomToElements(E()), 0);
+  };
+  /** Import a .draw, compatible .json or .md file as a new project (images go on the canvas) */
   const openFile = async (file: File) => {
+    if (file.type.startsWith('image/')) return insertImageFile(file); // enforces its own size limit
     if (file.size > MAX_IMPORT_BYTES) return toast('That file is too large (limit 25 MB).');
-    if (file.type.startsWith('image/')) return insertImageFile(file);
     if (/\.(md|markdown|mdx|txt)$/i.test(file.name) || file.type === 'text/markdown') {
       const els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE });
       if (!els.length) return toast('This Markdown file is empty.');
-      finishMulti(true, true);
-      saveNow();
-      loadProject(createProject(file.name.replace(/\.(md|markdown|mdx|txt)$/i, '') || 'Markdown', { ...emptyData(), elements: els }));
-      saveNow();
-      setTimeout(() => zoomToElements(E()), 0);
-      return;
+      return openAsProject(file.name.replace(/\.(md|markdown|mdx|txt)$/i, '') || 'Markdown', { ...emptyData(), elements: els });
     }
+    let d: ProjectData;
     try {
       const data = JSON.parse(await file.text());
-      let d: ProjectData;
       if (isInterchangeData(data)) {
         const r = importInterchange(data);
         d = { ...emptyData(), elements: r.elements, viewBg: r.viewBg, grid: r.grid };
@@ -485,12 +497,8 @@ export default function Editor() {
         const els = raw.map((r) => normalizeImported(r, DEFAULT_STYLE)).filter(Boolean) as DrawElement[];
         d = { ...emptyData(), elements: els, viewBg: data?.appState?.viewBackgroundColor || '#ffffff', grid: !!data?.appState?.gridSize };
       }
-      finishMulti(true, true);
-      saveNow();
-      loadProject(createProject(file.name.replace(/\.(draw|json)$/i, '') || 'Imported', d));
-      saveNow();
-      setTimeout(() => zoomToElements(E()), 0);
-    } catch { toast('Could not read this file. Expected a .draw, .json or .md file.'); }
+    } catch { return toast('Could not read this file. Expected a .draw, .json or .md file.'); }
+    openAsProject(file.name.replace(/\.(draw|json)$/i, '') || 'Imported', d);
   };
   const clearCanvas = () => {
     if (E().length && !A().confirmClear) return setApp({ confirmClear: true });
@@ -1129,9 +1137,15 @@ export default function Editor() {
     const resize = () => setApp({ width: window.innerWidth, height: window.innerHeight });
     resize();
     window.addEventListener('resize', resize);
-    const refit = () => { st.current.elements = E().map((e) => (e.type === 'text' ? fitText(e) : e.type === 'markdown' ? fitMarkdown(e) : e)); rerender(); };
+    // Web-font faces (latin-ext, cyrillic, ...) load lazily on first use; re-measure text and redraw whenever one arrives.
+    const refit = () => {
+      clearMarkdownCache();
+      st.current.elements = E().map((e) => (e.type === 'text' ? fitText(e) : e.type === 'markdown' ? fitMarkdown(e) : e));
+      rerender();
+    };
     document.fonts?.load("24px Caveat").then(refit).catch(() => {});
     document.fonts?.ready.then(refit).catch(() => {});
+    document.fonts?.addEventListener('loadingdone', refit);
 
     const isTyping = (t: EventTarget | null) => {
       const el = t as HTMLElement | null;
@@ -1253,6 +1267,7 @@ export default function Editor() {
     ov.addEventListener('wheel', onWheel, { passive: false });
     return () => {
       window.removeEventListener('resize', resize);
+      document.fonts?.removeEventListener('loadingdone', refit);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('copy', onCopy);

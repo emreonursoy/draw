@@ -27,14 +27,16 @@ export function getProject(id: string): ProjectData | null {
 }
 export function saveProject(id: string, data: ProjectData): boolean {
   const ok = ls.set(pk(id), JSON.stringify(data));
+  if (!ok) return false; // nothing changed on disk; don't touch the index either
   const l = listProjects().filter((p) => p.id !== id);
   const cur = listProjects().find((p) => p.id === id);
   if (cur) writeIndex([{ ...cur, updatedAt: Date.now() }, ...l]);
   return ok;
 }
-export function createProject(name: string, data: ProjectData = emptyData()): string {
+/** Creates a project; returns its id, or null when browser storage rejected the data. */
+export function createProject(name: string, data: ProjectData = emptyData()): string | null {
   const id = uid();
-  ls.set(pk(id), JSON.stringify(data));
+  if (!ls.set(pk(id), JSON.stringify(data))) return null;
   writeIndex([{ id, name: name.trim() || 'Untitled', updatedAt: Date.now() }, ...listProjects()]);
   return id;
 }
@@ -63,7 +65,7 @@ export function ensureCurrent(): string {
     let data = emptyData();
     const old = ls.get(OLD);
     if (old) { try { data = { ...data, ...JSON.parse(old) }; } catch {} ls.del(OLD); }
-    id = createProject('Untitled', data);
+    id = createProject('Untitled', data) ?? createProject('Untitled') ?? uid();
   }
   setCurrentId(id);
   return id;
