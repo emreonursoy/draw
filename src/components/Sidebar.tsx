@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 import type { AppState, DrawElement, SidebarTab } from '@/lib/types';
 import { listComments, type SearchHit } from '@/lib/search';
 import { LibraryTab, type LibItem, type LibraryActions } from './Chrome';
-import { Button, Input, OptionGroup, TabBar } from './ui';
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@ui-sdk/react/tabs';
+import { Button, Input, OptionGroup } from './ui';
 
 export interface SidebarActions extends LibraryActions {
   setApp: (p: Partial<AppState>) => void;
@@ -25,13 +26,19 @@ export function Sidebar({ app, elements, library, hits, actions }: { app: AppSta
   ];
   return (
     <aside className="library sidebar" aria-label="Sidebar" onPointerDown={(e) => e.stopPropagation()}>
-      <div className="sidebar-head">
-        <TabBar label="Sidebar sections" value={tab} tabs={tabs} onChange={(v) => actions.setApp({ sidebarTab: v })} />
-        <Button className="icon-btn sm" aria-label="Close sidebar" onClick={() => actions.setApp({ showLibrary: false })}>✕</Button>
-      </div>
-      {tab === 'library' && <LibraryTab items={library} actions={actions} />}
-      {tab === 'search' && <SearchTab app={app} hits={hits} actions={actions} />}
-      {tab === 'comments' && <CommentsTab app={app} comments={comments} actions={actions} />}
+      <Tabs value={tab} onValueChange={(v) => v && actions.setApp({ sidebarTab: v })}>
+        <div className="sidebar-head">
+          <TabsList className="tab-bar" aria-label="Sidebar sections">
+            {tabs.map((t) => (
+              <TabsTab key={t.value} value={t.value} className="tab">{t.label}{t.badge ? <span className="tab-badge">{t.badge}</span> : null}</TabsTab>
+            ))}
+          </TabsList>
+          <Button className="icon-btn sm" aria-label="Close sidebar" onClick={() => actions.setApp({ showLibrary: false })}>✕</Button>
+        </div>
+        {!app.viewOnly && <TabsPanel value="library">{tab === 'library' && <LibraryTab items={library} actions={actions} />}</TabsPanel>}
+        <TabsPanel value="search">{tab === 'search' && <SearchTab app={app} hits={hits} actions={actions} />}</TabsPanel>
+        <TabsPanel value="comments">{tab === 'comments' && <CommentsTab app={app} comments={comments} actions={actions} />}</TabsPanel>
+      </Tabs>
     </aside>
   );
 }

@@ -268,7 +268,7 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .tab-bar { display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: color-mix(in srgb, var(--fg) 6%, var(--bg-ui)); }
 .tab { border: 0; background: transparent; color: var(--fg); font: 500 12.5px Inter, sans-serif; height: 28px; padding: 0 9px; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
 .tab:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
-.tab[data-pressed], .tab[aria-pressed='true'], .tab[data-state='on'] { background: var(--bg-ui); color: var(--accent); box-shadow: 0 0 0 1px var(--border); }
+.tab[data-selected] { background: var(--bg-ui); color: var(--accent); box-shadow: 0 0 0 1px var(--border); }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tab-badge { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 10.5px; line-height: 16px; text-align: center; }
 .search-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 8px; min-height: 28px; }
@@ -286,3 +286,6 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .comment-row { display: flex; align-items: flex-start; gap: 4px; }
 .comment-row .result { flex: 1; min-width: 0; }
 .row-btn { height: 26px; padding: 0 9px; font-size: 12px; margin-top: 6px; flex-shrink: 0; }
+
+.lib-btn { width: 40px; padding: 0; display: grid; place-items: center; }
+.lib-btn[aria-expanded='true'] { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg-ui)); }

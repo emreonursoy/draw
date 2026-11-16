@@ -27,7 +27,8 @@ import { MermaidDialog } from './MermaidDialog';
 import Presenter from './Presenter';
 import CommentPopover from './CommentPopover';
 import Toolbar from './Toolbar';
-import { Button, createFileInputController, FilePick } from './ui';
+import { Button, createFileInputController, FilePick, IconButton } from './ui';
+import { Icons } from './icons';
 import { createMenuController } from '@ui-sdk/react/menu';
 import { Toast, ToastRegion, ToastTitle } from '@ui-sdk/react/toast';
 import { Modal } from './Modal';
@@ -1629,7 +1630,7 @@ export default function Editor() {
           <MainMenu app={app} actions={actions} />
           {!app.viewOnly && <Toolbar app={app} actions={actions} />}
           <BottomLeft app={app} actions={actions} />
-          <Button className="lib-btn" aria-expanded={app.showLibrary} onClick={() => setApp({ showLibrary: !app.showLibrary })}>Sidebar</Button>
+          <IconButton className="lib-btn" label="Sidebar" kbd="Ctrl+F" aria-expanded={app.showLibrary} onClick={() => setApp({ showLibrary: !app.showLibrary })}>{Icons.sidebar}</IconButton>
         </>
       )}
       {showProps && <PropertiesPanel app={app} selected={selected} actions={actions} />}
