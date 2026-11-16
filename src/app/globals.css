@@ -196,3 +196,8 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .empty-label { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 12px; border-radius: 10px; background: rgba(255,255,255,.82); backdrop-filter: blur(3px); box-shadow: 0 1px 6px rgba(60,50,140,.12); }
 .empty-label b { color: #3b3a5c; font-size: 13px; } .empty-label small { color: #7d7ba0; font-size: 11px; }
 .proj-thumb:hover .empty-thumb { background: linear-gradient(160deg, #f1f1ff, #e6e9fb); }
+
+/* rename in project cards */
+.proj-meta b { display: block; height: 30px; line-height: 30px; }
+.proj-edit.field { height: 30px; padding: 0 10px; flex: none; width: 100%; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); font-weight: 600; }
+.proj-edit-actions { display: flex; gap: 6px; padding: 6px 10px 10px; } .proj-edit-actions .btn { display: inline-flex; align-items: center; gap: 6px; }

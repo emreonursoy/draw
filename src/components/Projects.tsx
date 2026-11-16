@@ -45,6 +45,7 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const saveName = (id: string) => { if (!editName.trim()) return; renameProject(id, editName); setEditId(null); refresh(); };
   const refresh = () => { setTick((n) => n + 1); actions.refreshName(); };
   const cur = (() => { try { return localStorage.getItem('draw:current:v1'); } catch { return null; } })();
 
@@ -96,9 +97,9 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
             <div className="proj-meta">
               {editId === p.id ? (
                 <Input
-                  className="proj-edit" aria-label="Project name" autoFocus value={editName} onValueChange={setEditName}
-                  onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') { renameProject(p.id, editName); setEditId(null); refresh(); } if (e.key === 'Escape') setEditId(null); }}
-                  onBlur={() => { if (editId === p.id) { renameProject(p.id, editName); setEditId(null); refresh(); } }}
+                  className="field proj-edit" aria-label="Project name" autoFocus value={editName} onValueChange={setEditName} placeholder="Project name"
+                  onFocus={(e: any) => { const el = e.currentTarget; setTimeout(() => el.select(), 0); }}
+                  onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') saveName(p.id); if (e.key === 'Escape') { e.preventDefault(); setEditId(null); } }}
                 />
               ) : (
                 <b title={p.name}>{p.name}</b>
@@ -114,7 +115,12 @@ export function ProjectsDialog({ app, actions, onClose }: { app: AppState; actio
                 </div>
               </div>
             )}
-            {(
+            {editId === p.id ? (
+              <div className="proj-edit-actions">
+                <Button className="btn primary" style={ibtn} disabled={!editName.trim()} onClick={() => saveName(p.id)}>{Icons.check}Save</Button>
+                <Button className="btn" style={ibtn} onClick={() => setEditId(null)}>Cancel</Button>
+              </div>
+            ) : (
               <div className="proj-actions">
                 <IconButton className="opt" label="Rename" onClick={() => { setEditId(p.id); setEditName(p.name); }}>{Icons.edit}</IconButton>
                 <IconButton className="opt" label="Duplicate" onClick={() => { duplicateProject(p.id); refresh(); }}>{Icons.copy}</IconButton>
