@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { newElement } from '@/lib/element';
 import { DEFAULT_STYLE } from '@/lib/types';
 import type { DrawElement, ElType } from '@/lib/types';
-import { listComments, searchElements } from '@/lib/search';
+import { listComments, searchElements, stepIndex } from '@/lib/search';
 
 const el = (type: ElType, x: number, y: number, extra: Partial<DrawElement> = {}): DrawElement => ({ ...newElement(type, x, y, DEFAULT_STYLE), ...extra });
 
@@ -59,4 +59,14 @@ describe('listComments', () => {
     expect(list[0]).toMatchObject({ first: 'a', replies: 1, last: 9, resolved: false });
     expect(list[1].resolved).toBe(true);
   });
+});
+
+describe('stepIndex', () => {
+  it('wraps around both ends', () => {
+    expect(stepIndex(0, -1, 4)).toBe(3);
+    expect(stepIndex(3, 1, 4)).toBe(0);
+    expect(stepIndex(1, 1, 4)).toBe(2);
+    expect(stepIndex(0, 1, 1)).toBe(0);
+  });
+  it('returns -1 without results', () => { expect(stepIndex(0, 1, 0)).toBe(-1); });
 });

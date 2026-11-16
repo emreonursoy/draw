@@ -2,6 +2,7 @@ import type { DrawElement, ElType } from './types';
 
 export interface SearchHit {
   id: string;
+  element: DrawElement;
   type: ElType;
   /** What the match was found in, e.g. "Text", "Frame", "Comment". */
   label: string;
@@ -50,13 +51,16 @@ export function searchElements(elements: DrawElement[], query: string): SearchHi
     for (const t of elementTexts(el)) {
       const at = t.toLowerCase().indexOf(q);
       if (at < 0) continue;
-      hits.push({ hit: { id: el.id, type: el.type, label: LABELS[el.type], ...snippet(t, at, q.length) }, x: el.x, y: el.y });
+      hits.push({ hit: { id: el.id, element: el, type: el.type, label: LABELS[el.type], ...snippet(t, at, q.length) }, x: el.x, y: el.y });
       break; // one result per element
     }
   }
   hits.sort((a, b) => a.y - b.y || a.x - b.x);
   return hits.map((h) => h.hit);
 }
+
+/** The next or previous result index, wrapping around the ends; -1 when there are no results. */
+export const stepIndex = (idx: number, delta: number, count: number): number => (count ? (((idx + delta) % count) + count) % count : -1);
 
 export interface CommentInfo { id: string; first: string; replies: number; last: number; resolved: boolean; x: number; y: number }
 

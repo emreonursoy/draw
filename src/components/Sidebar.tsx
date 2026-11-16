@@ -1,12 +1,15 @@
 'use client';
 import { useMemo, useState } from 'react';
 import type { AppState, DrawElement, SidebarTab } from '@/lib/types';
-import { listComments, type SearchHit } from '@/lib/search';
+import { listComments, stepIndex, type SearchHit } from '@/lib/search';
 import { LibraryTab, type LibItem, type LibraryActions } from './Chrome';
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@ui-sdk/react/tabs';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@ui-sdk/react/menu';
 import { Icons } from './icons';
+import { ConfirmDialog } from './ConfirmDialog';
 import { Button, Input, SelectField } from './ui';
+
+type CommentFilter = 'all' | 'open' | 'resolved';
 
 export interface SidebarActions extends LibraryActions {
   setApp: (p: Partial<AppState>) => void;
@@ -20,6 +23,7 @@ export interface SidebarActions extends LibraryActions {
 /** The right-hand panel: the library, a search over the canvas, and the list of comment threads. */
 export function Sidebar({ app, elements, library, hits, actions }: { app: AppState; elements: DrawElement[]; library: LibItem[]; hits: SearchHit[]; actions: SidebarActions }) {
   const comments = useMemo(() => listComments(elements), [elements]);
+  const [filter, setFilter] = useState<CommentFilter>('all'); // kept here so it survives switching tabs
   const open = comments.filter((c) => !c.resolved).length;
   const tab: SidebarTab = app.viewOnly && app.sidebarTab === 'library' ? 'search' : app.sidebarTab;
   const tabs: { value: SidebarTab; label: string; badge?: number }[] = [
@@ -40,7 +44,7 @@ export function Sidebar({ app, elements, library, hits, actions }: { app: AppSta
         </div>
         {!app.viewOnly && <TabsPanel value="library">{tab === 'library' && <LibraryTab items={library} actions={actions} />}</TabsPanel>}
         <TabsPanel value="search">{tab === 'search' && <SearchTab app={app} hits={hits} actions={actions} />}</TabsPanel>
-        <TabsPanel value="comments">{tab === 'comments' && <CommentsTab app={app} comments={comments} actions={actions} />}</TabsPanel>
+        <TabsPanel value="comments">{tab === 'comments' && <CommentsTab app={app} comments={comments} filter={filter} onFilter={setFilter} actions={actions} />}</TabsPanel>
       </Tabs>
     </aside>
   );
@@ -48,12 +52,12 @@ export function Sidebar({ app, elements, library, hits, actions }: { app: AppSta
 
 function SearchTab({ app, hits, actions }: { app: AppState; hits: SearchHit[]; actions: SidebarActions }) {
   const idx = hits.length ? Math.min(app.searchIdx, hits.length - 1) : -1;
-  const go = (d: number) => hits.length && actions.goToSearch((idx + d + hits.length) % hits.length);
+  const go = (d: number) => { if (hits.length) actions.goToSearch(stepIndex(idx, d, hits.length)); };
   const q = app.search.trim();
   return (
     <>
       <Input
-        id="sidebar-search" className="field lib-search" aria-label="Search the canvas" placeholder="Find text on the canvas…" autoFocus
+        id="sidebar-search" className="field lib-search" aria-label="Search the canvas" placeholder="Find text on the canvas…"
         value={app.search} onValueChange={actions.setSearch}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -82,15 +86,14 @@ function SearchTab({ app, hits, actions }: { app: AppState; hits: SearchHit[]; a
   );
 }
 
-type CommentFilter = 'all' | 'open' | 'resolved';
-
-function CommentsTab({ app, comments, actions }: { app: AppState; comments: ReturnType<typeof listComments>; actions: SidebarActions }) {
-  const [filter, setFilter] = useState<CommentFilter>('all');
+function CommentsTab({ app, comments, filter, onFilter, actions }: { app: AppState; comments: ReturnType<typeof listComments>; filter: CommentFilter; onFilter: (f: CommentFilter) => void; actions: SidebarActions }) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const toDelete = comments.find((c) => c.id === confirmId) ?? null;
   const shown = comments.filter((c) => filter === 'all' || (filter === 'resolved') === c.resolved);
   return (
     <>
       <div className="comment-filter">
-        <SelectField label="Show comments" className="comment-select" value={filter} onChange={(v) => setFilter(v as CommentFilter)} items={[
+        <SelectField label="Show comments" className="comment-select" value={filter} onChange={(v) => onFilter(v as CommentFilter)} items={[
           { value: 'all', label: `All comments (${comments.length})` },
           { value: 'open', label: `Open (${comments.filter((c) => !c.resolved).length})` },
           { value: 'resolved', label: `Resolved (${comments.filter((c) => c.resolved).length})` },
@@ -112,7 +115,7 @@ function CommentsTab({ app, comments, actions }: { app: AppState; comments: Retu
                 {c.last > 0 && <span>{new Date(c.last).toLocaleString()}</span>}
               </span>
             </Button>
-            <Menu onAction={(v: string) => { if (v === 'show') actions.openComment(c.id); else if (v === 'resolve') actions.toggleResolve(c.id); else if (v === 'delete') actions.deleteComment(c.id); }}>
+            <Menu onAction={(v: string) => { if (v === 'show') actions.openComment(c.id); else if (v === 'resolve') actions.toggleResolve(c.id); else if (v === 'delete') setConfirmId(c.id); }}>
               <MenuTrigger className="icon-btn sm row-more" aria-label={`Actions for comment ${comments.indexOf(c) + 1}`}>{Icons.more}</MenuTrigger>
               <MenuContent className="menu" align="end" sideOffset={4} aria-label="Comment actions">
                 <MenuItem value="show" className="menu-item"><span className="mi-icon">{Icons.locate}</span><span className="mi-label">Show on canvas</span></MenuItem>
@@ -128,6 +131,11 @@ function CommentsTab({ app, comments, actions }: { app: AppState; comments: Retu
           </li>
         ))}
       </ul>
+      {toDelete && (
+        <ConfirmDialog title="Delete this comment thread?" onClose={() => setConfirmId(null)} onConfirm={() => { actions.deleteComment(toDelete.id); setConfirmId(null); }}>
+          {toDelete.replies > 0 ? `The thread and its ${toDelete.replies} ${toDelete.replies === 1 ? 'reply' : 'replies'}` : 'The thread'} will be removed from the canvas. You can undo this with Ctrl+Z.
+        </ConfirmDialog>
+      )}
     </>
   );
 }

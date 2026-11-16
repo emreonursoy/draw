@@ -58,7 +58,6 @@ kbd { font-family: inherit; background: var(--hover); border-radius: 4px; paddin
 .hex-row input[type=color] { width: 30px; height: 28px; padding: 0; border: 0; background: none; }
 
 .library { position: absolute; right: 14px; top: 68px; bottom: 70px; width: 260px; background: var(--bg-ui); border-radius: 10px; box-shadow: var(--shadow); padding: 10px; overflow-y: auto; }
-.library-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .library-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .muted { color: var(--muted); font-size: 13px; }
 .library-item { position: relative; border: 1px solid var(--border); border-radius: 8px; aspect-ratio: 1; display: grid; place-items: center; cursor: pointer; padding: 6px; background: #fff; }
 .library-item:hover { border-color: var(--accent); } .library-item img { max-width: 100%; max-height: 100%; }
@@ -279,7 +278,6 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .result-kind { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
 .result-text { overflow-wrap: anywhere; line-height: 1.35; }
 .result-text mark { background: rgba(255, 196, 0, .45); color: inherit; border-radius: 3px; padding: 0 1px; }
-.result-date { font-size: 11px; color: var(--muted); }
 .comment-filter { margin-bottom: 8px; }
 
 .lib-btn { width: 40px; padding: 0; display: grid; place-items: center; }

@@ -38,6 +38,7 @@ import { ExportDialog, HelpDialog } from './Dialogs';
 import { MainMenu, BottomLeft, ContextMenu, type LibItem } from './Chrome';
 import { Sidebar } from './Sidebar';
 import { searchElements, type SearchHit } from '@/lib/search';
+import { revealView } from '@/lib/view';
 
 type Drag =
   | { kind: 'pan'; sx: number; sy: number; scrollX: number; scrollY: number }
@@ -81,7 +82,7 @@ export default function Editor() {
   const misc = useRef({
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
-    hl: { ids: [] as string[], cur: null as string | null }, laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
+    hl: { els: [] as DrawElement[], cur: null as string | null }, hits: [] as SearchHit[], wantSearchFocus: false, laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
     styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, fileProjectId: '' as string, lastLinked: '' as string, holdT: 0, embedAt: null as Pt | null, linkSig: null as null | { els: DrawElement[]; bg: string; grid: boolean }, linkQueue: Promise.resolve() as Promise<void>, dropped: [] as { after: string | null; raw: unknown }[], shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
@@ -163,23 +164,15 @@ export default function Editor() {
     if (!el) return setApp(patch);
     const a = A();
     const viewW = a.width - (a.showLibrary && a.width > 760 ? 330 : 0);
-    const [x1, y1, x2, y2] = commonBounds([el]);
-    const pad = 60;
-    const fit = clamp(Math.min(viewW / (x2 - x1 + pad * 2), a.height / (y2 - y1 + pad * 2)), 0.1, 30);
-    const z = Math.min(a.zoom, fit);
-    setApp({ ...patch, zoom: z, scrollX: viewW / 2 / z - (x1 + x2) / 2, scrollY: a.height / 2 / z - (y1 + y2) / 2 });
+    setApp({ ...patch, ...revealView(commonBounds([el]), viewW, a.height, a.zoom) });
   };
   const openSidebar = (tab: SidebarTab) => {
+    if (tab === 'search') misc.current.wantSearchFocus = true; // focused right after the panel renders, see the effect below
     setApp({ showLibrary: true, sidebarTab: tab });
-    if (tab === 'search') setTimeout(() => { const i = document.getElementById('sidebar-search') as HTMLInputElement | null; i?.focus(); i?.select(); }, 30);
   };
-  const setSearch = (q: string) => {
-    const first = searchElements(E(), q)[0];
-    if (first) revealElement(first.id, { search: q, searchIdx: 0 });
-    else setApp({ search: q, searchIdx: 0 });
-  };
+  const setSearch = (q: string) => setApp({ search: q, searchIdx: 0 });
   const goToSearch = (i: number) => {
-    const h = searchElements(E(), A().search)[i];
+    const h = misc.current.hits[i];
     if (!h) return;
     revealElement(h.id, { searchIdx: i, selectedIds: { [h.id]: true }, activeComment: h.type === 'comment' ? h.id : null });
   };
@@ -1338,11 +1331,20 @@ export default function Editor() {
     const c = overlayRef.current;
     if (!c) return;
     renderOverlay(c, {
-      app: A(), selected: sel(), elements: E(), boxSel: misc.current.boxSel, hoverBind: misc.current.hoverBind,
+      app: A(), selected: sel(), boxSel: misc.current.boxSel, hoverBind: misc.current.hoverBind,
       highlight: misc.current.hl, laser: misc.current.laser, dpr: window.devicePixelRatio || 1,
     });
   };
   useEffect(() => { drawScene(); drawOverlay(); });
+  // Ctrl+F / "Find on canvas": focus the search box as soon as it exists. Selecting the Search tab by hand must not take focus.
+  useEffect(() => {
+    if (!misc.current.wantSearchFocus) return;
+    const i = document.getElementById('sidebar-search') as HTMLInputElement | null;
+    if (!i) return;
+    misc.current.wantSearchFocus = false;
+    i.focus();
+    i.select();
+  });
   // a pending load confirmation must not outlive its embed (deleted, undone, project switched)
   useEffect(() => { const c = A().embedConfirm; if (c && !E().some((x) => x.id === c.id && x.url)) setApp({ embedConfirm: null }); });
 
@@ -1565,7 +1567,16 @@ export default function Editor() {
   const selected = useMemo(() => elements.filter((e) => app.selectedIds[e.id]), [elements, app.selectedIds]);
   const searchOpen = app.showLibrary && !app.zen && app.sidebarTab === 'search';
   const searchHits: SearchHit[] = useMemo(() => (searchOpen ? searchElements(elements, app.search) : []), [searchOpen, elements, app.search]);
-  misc.current.hl = { ids: searchHits.map((h) => h.id), cur: searchHits[Math.min(app.searchIdx, searchHits.length - 1)]?.id ?? null };
+  misc.current.hits = searchHits;
+  misc.current.hl = { els: searchHits.map((h) => h.element), cur: searchHits[Math.min(app.searchIdx, searchHits.length - 1)]?.id ?? null };
+  // typing a new query brings its first match into view (opening the tab with an old query does not)
+  const lastQuery = useRef('');
+  useEffect(() => {
+    if (!searchOpen) { lastQuery.current = app.search; return; }
+    if (app.search === lastQuery.current) return;
+    lastQuery.current = app.search;
+    if (searchHits[0]) revealElement(searchHits[0].id);
+  });
   const dark = app.theme === 'dark';
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
   const baseCursor = app.tool === 'hand' ? 'grab' : app.tool === 'selection' ? undefined : app.tool === 'eraser' ? 'cell' : (app.tool === 'text' || app.tool === 'markdown') ? 'text' : 'crosshair';

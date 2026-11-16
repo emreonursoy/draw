@@ -5,7 +5,7 @@ import type { AppState, DrawElement } from '@/lib/types';
 import { exportCanvas } from '@/lib/render';
 import { Button, createFileInputController, FilePick, IconButton, Input } from './ui';
 import { Icons } from './icons';
-import { Modal } from './Modal';
+import { ConfirmDialog } from './ConfirmDialog';
 
 const BG_COLORS = ['#ffffff', '#f8f9fa', '#f5faff', '#fffce8', '#fdf8f6'];
 
@@ -56,7 +56,7 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
           {it('reset', Icons.clear, 'Reset the canvas')}
           <MenuSeparator className="menu-sep" />
           {it('present', Icons.frameTool, 'Present frames', 'alt+p')}
-          {it('find', Icons.library, 'Find on canvas', 'mod+f')}
+          {it('find', Icons.search, 'Find on canvas', 'mod+f')}
           {it('comments', Icons.comment, 'Comments')}
           {it('mermaid', Icons.comment, 'Mermaid to diagram…')}
           {it('embed', Icons.embed, 'Embed a web page…')}
@@ -169,15 +169,9 @@ export function LibraryTab({ items, actions }: { items: LibItem[]; actions: Libr
         ))}
       </div>
       {confirmItem && (
-        <Modal title="Delete from library?" onClose={() => setConfirmId(null)} width={420}>
-          <div onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}>
-          <p className="muted" style={{ marginTop: 0 }}>“{confirmItem.name}” will be removed from your library. This can’t be undone.</p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button className="btn" autoFocus style={{ padding: '0 14px' }} onClick={() => setConfirmId(null)}>Cancel</Button>
-            <Button className="btn danger-btn" style={{ padding: '0 14px' }} onClick={() => { actions.deleteLibrary(confirmItem.id); setConfirmId(null); }}>Delete</Button>
-          </div>
-          </div>
-        </Modal>
+        <ConfirmDialog title="Delete from library?" onClose={() => setConfirmId(null)} onConfirm={() => { actions.deleteLibrary(confirmItem.id); setConfirmId(null); }}>
+          “{confirmItem.name}” will be removed from your library. This can’t be undone.
+        </ConfirmDialog>
       )}
     </>
   );

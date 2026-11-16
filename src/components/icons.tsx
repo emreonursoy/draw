@@ -3,6 +3,7 @@ const I = ({ children, s = 20 }: { children: ReactNode; s?: number }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
 );
 export const Icons = {
+  search: <I><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></I>,
   locate: <I><circle cx="12" cy="12" r="6" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></I>,
   sidebar: <I><rect x="3" y="4" width="18" height="16" rx="2.5" /><path d="M15 4v16" /></I>,
   selection: <I><path d="M5 3l14 8-6 2-3 6z" /></I>,
