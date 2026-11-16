@@ -1,6 +1,5 @@
 'use client';
 import { useMemo, useState } from 'react';
-import type { AppState } from '@/lib/types';
 import { DEFAULT_STYLE } from '@/lib/types';
 import { duplicateProject, getProject, listProjects, renameProject } from '@/lib/projects';
 import { exportInterchange } from '@/lib/interchange';
@@ -40,7 +39,7 @@ function EmptyThumb() {
   );
 }
 
-export function ProjectsDialog({ actions, onClose }: { app: AppState; actions: any; onClose: () => void }) {
+export function ProjectsDialog({ actions, onClose }: { actions: any; onClose: () => void }) {
   const [tick, setTick] = useState(0);
   const [name, setName] = useState('');
   const [q, setQ] = useState('');

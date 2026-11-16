@@ -6,7 +6,7 @@ Built with [Next.js](https://nextjs.org), [React](https://react.dev), [roughjs](
 
 ## Getting started
 
-Requires Node.js 20.9 or newer.
+Requires Node.js 20.9 or newer to build and run; the test and lint tools need Node.js 22.12 or newer.
 
 ```bash
 git clone git@github.com:emreonursoy/draw.git
@@ -32,7 +32,7 @@ npm run lint        # ESLint (Next.js + React Hooks rules)
 npm run check       # typecheck + lint + tests
 ```
 
-A GitHub Actions workflow (`.github/workflows/ci.yml`) runs typecheck, lint, tests and the production build on every push and pull request. TypeScript 7 is used for `tsc`; `typescript` itself is aliased to the 6.x compatibility package only because typescript-eslint does not support 7 yet.
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs typecheck, lint, tests and the production build on every push and pull request, and also builds on the minimum supported Node.js (20.9). Lint warnings are capped (`--max-warnings`), so new ones fail the build; lower the number as `any` types get replaced. `typecheck` runs both TypeScript 7 (`tsc`) and 6.x (`tsc6`), because `typescript` is aliased to the 6.x compatibility package for ESLint and Next.js until typescript-eslint supports 7.
 
 ## Tests
 

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { AppState, DrawElement, Pt, Style, ToolType } from '@/lib/types';
 import { DEFAULT_STYLE } from '@/lib/types';
 import {
@@ -1530,7 +1530,7 @@ export default function Editor() {
   /* eslint-enable react-hooks/exhaustive-deps */
 
   /* ---------- render ---------- */
-  const selected = elements.filter((e) => app.selectedIds[e.id]);
+  const selected = useMemo(() => elements.filter((e) => app.selectedIds[e.id]), [elements, app.selectedIds]);
   const dark = app.theme === 'dark';
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
   const baseCursor = app.tool === 'hand' ? 'grab' : app.tool === 'selection' ? undefined : app.tool === 'eraser' ? 'cell' : (app.tool === 'text' || app.tool === 'markdown') ? 'text' : 'crosshair';
@@ -1627,7 +1627,7 @@ export default function Editor() {
       {app.zen && <Button className="zen-exit" onClick={() => setApp({ zen: false })}>Exit zen mode</Button>}
       <ContextMenu controller={ctxMenu} app={app} selected={selected} actions={actions} />
       {app.exportOpen && <ExportDialog app={app} elements={elements} selected={selected} onClose={() => setApp({ exportOpen: false })} />}
-      {app.projectsOpen && <ProjectsDialog app={app} actions={actions} onClose={() => setApp({ projectsOpen: false })} />}
+      {app.projectsOpen && <ProjectsDialog actions={actions} onClose={() => setApp({ projectsOpen: false })} />}
       {app.confirmDiscard && (
         <Modal title="This project couldn't be saved" width={440} onClose={() => { misc.current.pendingLeave = null; setApp({ confirmDiscard: false }); }}>
           <p className="muted">Browser storage is full, so your latest changes exist only on screen. Download a backup before leaving, or the changes will be lost.</p>
