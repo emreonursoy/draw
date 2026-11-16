@@ -204,3 +204,12 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 
 /* dividers */
 .lib-tools { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+/* project thumbnails: contained, themed, never overflow the card */
+.proj-thumb { display: grid; place-items: center; height: 130px; width: 100%; padding: 0; overflow: hidden; background: color-mix(in srgb, var(--fg) 6%, var(--bg-ui)); }
+.proj-thumb img { max-width: calc(100% - 20px); max-height: 110px; width: auto; height: auto; border-radius: 4px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent), 0 2px 8px rgba(0,0,0,.18); }
+.proj-thumb .empty-thumb { height: 130px; border-radius: 0; }
+[data-theme='dark'] .empty-thumb { background: linear-gradient(160deg, #26263a, #1f2030); color: #a8a5ff; }
+[data-theme='dark'] .empty-label { background: rgba(35,35,48,.85); box-shadow: 0 1px 8px rgba(0,0,0,.4); }
+[data-theme='dark'] .empty-label b { color: #e8e8f4; } [data-theme='dark'] .empty-label small { color: #9a9ac0; }
+[data-theme='dark'] .proj-thumb:hover .empty-thumb { background: linear-gradient(160deg, #2c2c44, #23243a); }
