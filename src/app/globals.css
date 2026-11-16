@@ -203,5 +203,4 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .proj-edit-actions { display: flex; gap: 6px; padding: 6px 10px 10px; } .proj-edit-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
 
 /* dividers */
-.proj-thumb { border-bottom: 1px solid var(--border); }
 .lib-tools { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
