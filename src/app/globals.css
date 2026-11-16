@@ -9,6 +9,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; font-family: Inter, system-ui, sans-serif; font-size: 14px; }
 body { background: #fff; }
+.app > :where(:not(canvas, .canvas-wrap, .embed-layer, .presenter, .toast-region)) { z-index: 5; } /* chrome stays above embedded pages */
 .app { position: fixed; inset: 0; color: var(--fg); overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
 .canvas-wrap { position: absolute; inset: 0; }
 canvas { display: block; }
@@ -247,3 +248,15 @@ dialog.modal::backdrop { background: rgba(0,0,0,.35); }
 .mi-check { width: 14px; text-align: center; color: var(--accent); font-weight: 700; }
 .tools-menu .menu-label { padding-top: 6px; }
 @media (max-width: 760px) { .toolbar { left: 62px; right: auto; transform: none; max-width: calc(100vw - 76px); } }
+
+/* embedded pages */
+.overlay { z-index: 2; }
+.embed-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.embed-frame { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 1; background: #fff; border: 1.5px solid #ced4da; border-radius: 8px; overflow: hidden; box-sizing: border-box; box-shadow: 0 1px 6px rgba(0,0,0,.12); }
+.embed-frame.active { z-index: 3; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.embed-frame iframe { position: absolute; left: 0; width: 100%; border: 0; background: #fff; }
+.embed-bar { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; background: #eef0f3; color: #495057; font: 600 13px Inter, sans-serif; pointer-events: none; }
+.embed-host { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.embed-btn { pointer-events: auto; border: 0; background: transparent; color: #495057; font: 500 12px Inter, sans-serif; padding: 2px 8px; border-radius: 6px; }
+.embed-btn:hover { background: rgba(0,0,0,.08); }
+.field-error { color: var(--danger); font-size: 13px; margin: 6px 0 0; }

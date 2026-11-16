@@ -1,6 +1,6 @@
 export type Pt = [number, number];
-export type ElType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'freedraw' | 'text' | 'image' | 'frame' | 'comment' | 'markdown';
-export type ToolType = ElType | 'selection' | 'eraser' | 'hand' | 'laser';
+export type ElType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'freedraw' | 'text' | 'image' | 'frame' | 'comment' | 'markdown' | 'embed';
+export type ToolType = ElType | 'selection' | 'eraser' | 'hand' | 'laser' | 'bucket';
 export type FillStyle = 'hachure' | 'cross-hatch' | 'solid' | 'zigzag';
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
 export type Arrowhead = null | 'arrow' | 'bar' | 'dot' | 'triangle';
@@ -42,6 +42,10 @@ export interface DrawElement extends Style {
   endBinding: string | null;
   thread?: { text: string; at: number }[];
   resolved?: boolean;
+  /** Embedded web page address (embed elements; always an http(s) URL). */
+  url?: string;
+  /** Closed polygon: the last point connects back to the first, and the area can be filled. */
+  closed?: boolean;
 }
 
 export interface AppState {
@@ -68,6 +72,10 @@ export interface AppState {
   projectName: string;
   confirmClear: boolean;
   confirmDiscard: boolean;
+  embedDialog: { id: string | null } | null;
+  loadedEmbeds: Record<string, true>;
+  activeEmbed: string | null;
+  shapeAssist: boolean;
   presenting: boolean;
   viewOnly: boolean;
   sharedView: boolean;

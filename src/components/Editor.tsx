@@ -16,6 +16,10 @@ import { ProjectsDialog } from './Projects';
 import { parseMarkdown, toMarkdown } from '@/lib/markdown';
 import { clearMarkdownCache, fitMarkdown } from '@/lib/mdrender';
 import { processImage } from '@/lib/image';
+import { recognizeShape } from '@/lib/shape';
+import { regionAt } from '@/lib/fill';
+import EmbedLayer from './EmbedLayer';
+import { EmbedDialog } from './EmbedDialog';
 import { decodeScene, encodeScene, MAX_LINK_CHARS } from '@/lib/share';
 import { MermaidDialog } from './MermaidDialog';
 import Presenter from './Presenter';
@@ -47,7 +51,7 @@ const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 const THEME_KEY = 'draw:theme';
 const LIBKEY = 'draw:library:v1';
 const TOOL_KEYS: Record<string, ToolType> = {
-  '1': 'selection', v: 'selection', f: 'frame', c: 'comment', m: 'markdown', '2': 'rectangle', r: 'rectangle', '3': 'diamond', d: 'diamond', '4': 'ellipse', o: 'ellipse',
+  '1': 'selection', v: 'selection', f: 'frame', c: 'comment', m: 'markdown', b: 'bucket', i: 'embed', '2': 'rectangle', r: 'rectangle', '3': 'diamond', d: 'diamond', '4': 'ellipse', o: 'ellipse',
   '5': 'arrow', a: 'arrow', '6': 'line', l: 'line', '7': 'freedraw', p: 'freedraw', '8': 'text', t: 'text', '9': 'image',
   e: 'eraser', h: 'hand', k: 'laser',
 };
@@ -55,7 +59,7 @@ const TOOL_KEYS: Record<string, ToolType> = {
 const initialApp = (): AppState => ({
   tool: 'selection', toolLocked: false, scrollX: 0, scrollY: 0, zoom: 1, selectedIds: {}, theme: 'light', viewBg: '#ffffff',
   grid: false, zen: false, style: { ...DEFAULT_STYLE }, editing: null, width: 1200, height: 800, showLibrary: false,
-  exportOpen: false, helpOpen: false, menuOpen: false, contextMenu: null, projectsOpen: false, projectName: 'Untitled', confirmClear: false, confirmDiscard: false,
+  exportOpen: false, helpOpen: false, menuOpen: false, contextMenu: null, projectsOpen: false, projectName: 'Untitled', confirmClear: false, confirmDiscard: false, embedDialog: null, loadedEmbeds: {}, activeEmbed: null, shapeAssist: true,
   presenting: false, viewOnly: false, sharedView: false, activeComment: null, mermaidOpen: false, imageMode: 'high', fileLink: null,
 });
 
@@ -73,7 +77,7 @@ export default function Editor() {
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
     laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
-    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, fileProjectId: '' as string, lastLinked: '' as string, linkSig: null as null | { els: DrawElement[]; bg: string; grid: boolean }, linkQueue: Promise.resolve() as Promise<void>, dropped: [] as { after: string | null; raw: unknown }[], shared: null as any, saveT: 0, projectId: '' as string,
+    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, lastFail: 0, retryT: 0, pendingLeave: null as null | (() => void), fileHandle: null as any, fileProjectId: '' as string, lastLinked: '' as string, holdT: 0, embedAt: null as Pt | null, linkSig: null as null | { els: DrawElement[]; bg: string; grid: boolean }, linkQueue: Promise.resolve() as Promise<void>, dropped: [] as { after: string | null; raw: unknown }[], shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -157,6 +161,7 @@ export default function Editor() {
     if (t !== 'selection') p.selectedIds = {};
     setApp(p);
     if (t === 'image') { misc.current.imageAt = null; imgPick.open(); }
+    if (t === 'embed') { misc.current.embedAt = null; setApp({ embedDialog: { id: null }, tool: 'selection' }); }
     void a;
   };
 
@@ -165,8 +170,8 @@ export default function Editor() {
     const shape = e.type === 'rectangle' || e.type === 'diamond' || e.type === 'ellipse';
     switch (k) {
       case 'strokeColor': return e.type !== 'image';
-      case 'backgroundColor': return shape || e.type === 'markdown';
-      case 'fillStyle': return shape;
+      case 'backgroundColor': return shape || e.type === 'markdown' || (e.type === 'line' && !!e.closed);
+      case 'fillStyle': return shape || (e.type === 'line' && !!e.closed);
       case 'strokeWidth': return e.type !== 'text' && e.type !== 'image';
       case 'strokeStyle': case 'roughness': return shape || isLinear(e);
       case 'roundness': return e.type === 'rectangle' || e.type === 'diamond';
@@ -524,7 +529,7 @@ export default function Editor() {
     setCurrentId(id);
     st.current.elements = els;
     st.current.hist = { stack: [{ elements: els, sel: {} }], idx: 0 };
-    setApp({ selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
+    setApp({ loadedEmbeds: {}, activeEmbed: null, selectedIds: {}, editing: null, viewOnly: st.current.app.sharedView ? false : st.current.app.viewOnly, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
   };
   const switchProject = (id: string) => leaveProject(() => loadProject(id));
   const newProject = (name: string) => leaveProject(() => {
@@ -705,6 +710,9 @@ export default function Editor() {
     const raw = toScene(e);
     misc.current.pointer = raw;
     if (a.editing) { commitText(null); return; }
+    clearTimeout(misc.current.holdT);
+    if (a.activeEmbed) setApp({ activeEmbed: null });
+    if (a.tool === 'bucket' && e.button === 0 && !misc.current.space && !a.viewOnly) { bucketAt(raw); return; }
     if (e.button === 1 || a.tool === 'hand' || misc.current.space || a.viewOnly) {
       drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, scrollX: a.scrollX, scrollY: a.scrollY };
       return;
@@ -796,6 +804,92 @@ export default function Editor() {
         drag.current = { kind: 'create', id: el.id, start: base, sx: e.clientX, sy: e.clientY };
       }
     }
+  };
+
+  /* ---------- draw-to-shape ---------- */
+  /** Replaces a freehand stroke with the clean shape it resembles. Returns false when nothing matched. */
+  const recognizeNow = (id: string): boolean => {
+    const el = E().find((x) => x.id === id);
+    if (!el || el.type !== 'freedraw') return false;
+    const rec = recognizeShape(absPoints(el));
+    if (!rec) return false;
+    const style: Style = { ...A().style, strokeColor: el.strokeColor, strokeWidth: el.strokeWidth, strokeStyle: el.strokeStyle, opacity: el.opacity };
+    let n: DrawElement;
+    if (rec.kind === 'line' || rec.kind === 'triangle') {
+      const base = newElement('line', rec.x, rec.y, style, { arrowType: 'sharp', closed: rec.kind === 'triangle' });
+      n = withAbsPoints(base, rec.points!);
+    } else {
+      n = { ...newElement(rec.kind, rec.x, rec.y, style), width: rec.width, height: rec.height };
+    }
+    n = { ...n, id: el.id, seed: el.seed, groupIds: el.groupIds };
+    st.current.elements = E().map((x) => (x.id === id ? n : x));
+    return true;
+  };
+  const snapStroke = (id: string) => {
+    const d = drag.current;
+    if (!d || d.kind !== 'create' || d.id !== id) return;
+    if (!recognizeNow(id)) return;
+    drag.current = null; // the stroke ends here; releasing the pen just keeps the shape
+    setApp({ selectedIds: { [id]: true } });
+    commit();
+  };
+  const convertToShape = () => {
+    const s = sel().filter((x) => x.type === 'freedraw');
+    if (!s.length) return;
+    let n = 0;
+    for (const x of s) if (recognizeNow(x.id)) n++;
+    if (!n) return toast("Couldn't recognise a shape in that stroke. Try a cleaner rectangle, ellipse, diamond, triangle or straight line.");
+    rerender();
+    commit();
+  };
+
+  /* ---------- bucket fill ---------- */
+  const bucketAt = (p: Pt) => {
+    const color = A().style.backgroundColor;
+    const fillable = (x: DrawElement) => x.type === 'rectangle' || x.type === 'diamond' || x.type === 'ellipse' || x.type === 'markdown' || (x.type === 'line' && !!x.closed);
+    const els = E();
+    for (let i = els.length - 1; i >= 0; i--) {
+      const x = els[i];
+      if (x.locked || !fillable(x)) continue;
+      if (hitElement({ ...x, backgroundColor: '#000' }, p, 2)) {
+        setEls(els.map((y) => (y.id === x.id ? { ...y, backgroundColor: color, fillStyle: 'solid' } : y)));
+        commit();
+        return;
+      }
+    }
+    if (color === 'transparent') return toast('Pick a background colour for the bucket first.');
+    const res = regionAt(els, p);
+    if ('error' in res) {
+      toast(res.error === 'open' ? "That area isn't closed. Close the gaps in its outline, or click a shape to fill it directly." : res.error === 'line' ? 'Click inside an area, not on a line.' : 'Nothing to fill here.');
+      return;
+    }
+    const base = newElement('line', 0, 0, { ...A().style, strokeColor: color, backgroundColor: color, fillStyle: 'solid', strokeWidth: 1, roughness: 0, opacity: 100 }, { arrowType: 'sharp', closed: true });
+    const fill = withAbsPoints(base, res.points);
+    const at = els.findIndex((x) => x.type !== 'frame'); // behind everything but frames
+    setEls(at < 0 ? [...els, fill] : [...els.slice(0, at), fill, ...els.slice(at)]);
+    commit();
+  };
+
+  /* ---------- embeds ---------- */
+  const submitEmbed = (url: string) => {
+    const dlg = A().embedDialog;
+    setApp({ embedDialog: null });
+    if (!dlg) return;
+    if (dlg.id) {
+      setEls(E().map((x) => (x.id === dlg.id ? { ...x, url } : x)));
+      commit();
+      return;
+    }
+    const c = misc.current.embedAt ?? viewCenter();
+    const el = { ...newElement('embed', c[0] - 320, c[1] - 200, { ...A().style, strokeColor: '#868e96' }), width: 640, height: 400, url };
+    setEls([...E(), el]);
+    setApp({ selectedIds: { [el.id]: true }, tool: 'selection' });
+    commit();
+  };
+  const editEmbed = () => { const s = sel().find((x) => x.type === 'embed'); if (s) setApp({ embedDialog: { id: s.id } }); };
+  const unloadEmbed = (id: string) => {
+    const { [id]: _gone, ...rest } = A().loadedEmbeds;
+    setApp({ loadedEmbeds: rest, activeEmbed: A().activeEmbed === id ? null : A().activeEmbed });
   };
 
   const eraseAt = (p: Pt) => {
@@ -950,6 +1044,9 @@ export default function Editor() {
           upd = { ...el, points: [...el.points, [p[0] - el.x, p[1] - el.y]] };
           const xs = upd.points.map((q) => q[0]), ys = upd.points.map((q) => q[1]);
           upd.width = Math.max(...xs) - Math.min(...xs); upd.height = Math.max(...ys) - Math.min(...ys);
+          // pause at the end of a stroke to snap it to a clean shape
+          clearTimeout(misc.current.holdT);
+          if (A().shapeAssist) misc.current.holdT = window.setTimeout(() => snapStroke(d.id), 550);
         } else if (isLinear(el)) {
           if (e.shiftKey) p = snapAngle(d.start, p);
           upd = withAbsPoints(el, [d.start, p]);
@@ -1042,6 +1139,7 @@ export default function Editor() {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    clearTimeout(misc.current.holdT);
     const d = drag.current;
     drag.current = null;
     const a = A();
@@ -1145,6 +1243,7 @@ export default function Editor() {
     const p = toScene(e);
     const hit = topHit(p);
     if (hit) {
+      if (hit.type === 'embed') { setApp({ loadedEmbeds: { ...a.loadedEmbeds, [hit.id]: true }, activeEmbed: hit.id }); return; }
       if (hit.type === 'text' || hit.type === 'markdown' || canHaveLabel(hit)) startEdit(hit, false);
       return;
     }
@@ -1202,7 +1301,7 @@ export default function Editor() {
       loadProject(ensureCurrent());
       if (legacy === 'migrated') toast('Your drawing from an older version was recovered. You can find it in Projects.');
       if (legacy === 'failed') toast('A drawing saved by an older version could not be moved because browser storage is full. Free some space and reload to recover it.');
-      st.current.app = { ...st.current.app, theme: localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light' };
+      st.current.app = { ...st.current.app, shapeAssist: localStorage.getItem('draw:shapeAssist') !== '0', theme: localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light' };
       const lib = localStorage.getItem(LIBKEY);
       if (lib) {
         const raw = JSON.parse(lib) as any[];
@@ -1278,7 +1377,7 @@ export default function Editor() {
         else if (e.altKey && e.key.toLowerCase() === 'p') setApp({ presenting: true });
         return;
       }
-      if (a.exportOpen || a.helpOpen || a.projectsOpen || a.confirmClear || a.confirmDiscard) return;
+      if (a.exportOpen || a.helpOpen || a.projectsOpen || a.confirmClear || a.confirmDiscard || a.embedDialog) return;
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
       if (e.key === ' ' ) { misc.current.space = true; e.preventDefault(); if (overlayRef.current) overlayRef.current.style.cursor = 'grab'; return; }
@@ -1439,7 +1538,8 @@ export default function Editor() {
       } catch { toast('Could not read this library file.'); }
     },
     insertMermaid: (els: DrawElement[]) => addElements(els, viewCenter()),
-    copyShareLink, editCopy, linkSaveFile, linkOpenFile, unlinkFile,
+    copyShareLink, editCopy, linkSaveFile, linkOpenFile, unlinkFile, convertToShape, editEmbed, unloadEmbed,
+    toggleShapeAssist: () => { const on = !A().shapeAssist; setApp({ shapeAssist: on }); try { localStorage.setItem('draw:shapeAssist', on ? '1' : '0'); } catch {} },
     addComment: (id: string, text: string) => { setEls(E().map((e) => (e.id === id ? { ...e, thread: [...(e.thread || []), { text, at: Date.now() }] } : e))); commit(); },
     toggleResolve: (id: string) => { setEls(E().map((e) => (e.id === id ? { ...e, resolved: !e.resolved } : e))); commit(); setApp({ activeComment: null }); },
     deleteComment: (id: string) => { setApp({ activeComment: null }); deleteIds({ [id]: true }); },
@@ -1455,6 +1555,7 @@ export default function Editor() {
       <div className="canvas-wrap" style={{ filter: dark ? DARK_FILTER : undefined }}>
         <canvas ref={sceneRef} width={app.width * dpr} height={app.height * dpr} style={{ width: app.width, height: app.height }} />
       </div>
+      <EmbedLayer app={app} elements={elements} actions={actions} />
       <canvas
         ref={overlayRef} className="overlay" width={app.width * dpr} height={app.height * dpr}
         style={{ width: app.width, height: app.height, cursor: misc.current.space ? 'grab' : baseCursor }}
@@ -1493,6 +1594,7 @@ export default function Editor() {
         </div>
       )}
       {app.presenting && <Presenter app={app} elements={elements} onClose={() => setApp({ presenting: false })} />}
+      {app.embedDialog && (() => { const cur = app.embedDialog.id ? elements.find((x) => x.id === app.embedDialog!.id) : null; return <EmbedDialog initial={cur?.url ?? ''} onSubmit={submitEmbed} onClose={() => setApp({ embedDialog: null })} />; })()}
       {app.mermaidOpen && <MermaidDialog app={app} actions={actions} onClose={() => setApp({ mermaidOpen: false })} />}
       {app.activeComment && (() => { const c = elements.find((x) => x.id === app.activeComment); return c ? <CommentPopover key={c.id} el={c} app={app} actions={actions} /> : null; })()}
       <ToastRegion className="toast-region">{() => <Toast className="toast"><ToastTitle /></Toast>}</ToastRegion>

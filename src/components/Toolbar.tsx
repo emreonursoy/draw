@@ -27,12 +27,14 @@ const GROUPS: { name: string; tools: Tool[] }[] = [
     { id: 'text', label: 'Text', key: '8', icon: 'text' },
     { id: 'markdown', label: 'Markdown block', key: 'M', icon: 'markdown' },
     { id: 'image', label: 'Insert image', key: '9', icon: 'image' },
+    { id: 'embed', label: 'Embed web page', key: 'I', icon: 'embed' },
   ] },
   { name: 'Structure', tools: [
     { id: 'frame', label: 'Frame', key: 'F', icon: 'frameTool' },
     { id: 'comment', label: 'Comment', key: 'C', icon: 'comment' },
   ] },
   { name: 'Utility', tools: [
+    { id: 'bucket', label: 'Bucket fill', key: 'B', icon: 'bucket' },
     { id: 'eraser', label: 'Eraser', key: 'E', icon: 'eraser' },
     { id: 'laser', label: 'Laser pointer', key: 'K', icon: 'laser' },
   ] },

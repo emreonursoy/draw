@@ -27,7 +27,9 @@ export function importInterchange(data: any): { elements: DrawElement[]; viewBg:
     const raw = { ...r };
     if (raw.type === 'image') raw.dataURL = files[raw.fileId]?.dataURL;
     if (raw.type === 'image' && !raw.dataURL) continue;
-    if (!['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame'].includes(raw.type)) continue;
+    if (raw.type === 'embeddable') { raw.type = 'embed'; raw.url = raw.link; }
+    if (raw.type === 'line' && raw.polygon === true && Array.isArray(raw.points) && raw.points.length > 3) { raw.closed = true; raw.points = raw.points.slice(0, -1); }
+    if (!['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame', 'embed'].includes(raw.type)) continue;
     if (raw.type === 'frame') { raw.strokeColor = '#868e96'; raw.backgroundColor = 'transparent'; }
     raw.fontFamily = fontIn(raw.fontFamily);
     raw.startArrowhead = HEAD_IN[raw.startArrowhead] ?? null;
@@ -83,12 +85,14 @@ export function exportInterchange(all: DrawElement[], viewBg: string, grid: bool
     const b: any = base(e);
     const bound = [...(boundTo.get(e.id) || [])];
     switch (e.type) {
+      case 'embed': { b.type = 'embeddable'; b.link = e.url; b.roundness = null; break; }
       case 'markdown': { out.push(textEl(e.id, e.x, e.y, e.width, e.height, { ...e, fontFamily: 3, fontSize: 14 }, null)); continue; }
       case 'frame': { b.name = e.text; b.roundness = null; break; }
       case 'rectangle': case 'diamond': b.roundness = e.roundness ? { type: 3 } : null; break;
       case 'arrow': case 'line':
         b.roundness = e.arrowType === 'round' ? { type: 2 } : null;
-        b.points = e.points; b.lastCommittedPoint = null;
+        b.points = e.closed ? [...e.points, e.points[0]] : e.points; b.lastCommittedPoint = null;
+        if (e.closed) b.polygon = true;
         b.startBinding = e.startBinding ? { elementId: e.startBinding, focus: 0, gap: 6 } : null;
         b.endBinding = e.endBinding ? { elementId: e.endBinding, focus: 0, gap: 6 } : null;
         b.startArrowhead = e.type === 'arrow' ? e.startArrowhead : null;

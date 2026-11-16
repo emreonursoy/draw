@@ -2,6 +2,7 @@ import type { DrawElement, Style } from './types';
 import { commonBounds, fitText, frameChildren, measureText, newElement, orderedFrames } from './element';
 import { parseMermaid } from './mermaid';
 import { uid } from './utils';
+import { hostOf } from './embed';
 
 const WIDTH = 640;
 const GAP = 18;
@@ -192,6 +193,7 @@ export function toMarkdown(all: DrawElement[], title?: string): string {
     const diagram = mermaidFor(s.els);
     if (diagram.length) items.push({ y: Math.min(...s.els.filter((e) => used.has(e.id)).map((e) => e.y)), text: diagram.join('\n') });
     for (const e of s.els.filter((e) => isShape(e) && !used.has(e.id))) items.push({ y: e.y, text: `- ${e.text.replace(/\n/g, ' ')}` });
+    for (const e of s.els.filter((e) => e.type === 'embed' && e.url)) items.push({ y: e.y, text: `[Embedded page: ${hostOf(e.url!)}](${e.url})` });
     for (const e of s.els.filter((e) => e.type === 'line' && e.points.length === 2 && Math.abs(e.points[1][1]) < 2 && Math.abs(e.points[1][0]) > 400)) items.push({ y: e.y, text: '---' });
     items.sort((a, b) => a.y - b.y);
     items.forEach((it) => out.push(it.text, ''));

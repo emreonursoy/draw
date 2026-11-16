@@ -6,6 +6,7 @@ import { FONTS } from './types';
 import { commonBounds, elBounds, elCenter, FRAME_LABEL, fontString, isFilled, LINE_HEIGHT, measureText, midPoint, renderPoints } from './element';
 import { dist } from './utils';
 import { drawMarkdown } from './mdrender';
+import { hostOf } from './embed';
 import { frameChildren } from './element';
 
 const gen = rough.generator();
@@ -105,7 +106,7 @@ function buildDrawables(el: DrawElement): Drawable[] {
     case 'arrow': {
       let pts = renderPoints(el);
       if (pts.length < 2) return [];
-      const lo: Options = { ...o, fill: undefined };
+      const lo: Options = el.closed ? o : { ...o, fill: undefined };
       const curved = el.arrowType === 'round';
       if (curved && pts.length === 2) {
         const [a, b] = pts;
@@ -114,7 +115,7 @@ function buildDrawables(el: DrawElement): Drawable[] {
         const nx = -(b[1] - a[1]) / (l || 1), ny = (b[0] - a[0]) / (l || 1);
         pts = [a, [mx + nx * l * 0.08, my + ny * l * 0.08], b];
       }
-      const body = curved && pts.length > 2 ? gen.curve(pts, lo) : gen.linearPath(pts, lo);
+      const body = el.closed && pts.length >= 3 ? gen.polygon(pts, lo) : curved && pts.length > 2 ? gen.curve(pts, lo) : gen.linearPath(pts, lo);
       const out = [body];
       if (el.type === 'arrow') {
         const n = pts.length;
@@ -181,6 +182,29 @@ export interface RenderOpts {
   onImageLoad?: () => void;
 }
 
+/** What an embedded page looks like on the canvas, in exports and in slides (the live page is a DOM overlay). */
+function drawEmbedCard(ctx: CanvasRenderingContext2D, el: DrawElement) {
+  const { x, y, width: w, height: h } = el;
+  ctx.save();
+  ctx.fillStyle = '#f8f9fa';
+  ctx.strokeStyle = el.strokeColor === 'transparent' ? '#ced4da' : el.strokeColor;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#eef0f3';
+  ctx.beginPath(); ctx.roundRect(x + 1, y + 1, w - 2, 30, [7, 7, 0, 0]); ctx.fill();
+  ctx.fillStyle = '#868e96';
+  ctx.beginPath(); ctx.arc(x + 17, y + 16, 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#495057';
+  ctx.font = '600 13px Inter, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.fillText(hostOf(el.url || ''), x + 30, y + 16, Math.max(10, w - 44));
+  ctx.fillStyle = '#868e96';
+  ctx.font = '14px Inter, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Embedded web page', x + w / 2, y + h / 2 - 10, w - 24);
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('Double-click to load and use it', x + w / 2, y + h / 2 + 12, w - 24);
+  ctx.restore();
+}
+
 export function drawElement(ctx: CanvasRenderingContext2D, rc: ReturnType<typeof rough.canvas>, el: DrawElement, opts: { bg: string; fade?: boolean; onImageLoad?: () => void; zoom?: number; showComments?: boolean }) {
   if (el.type === 'comment') {
     if (!opts.showComments) return;
@@ -218,6 +242,8 @@ export function drawElement(ctx: CanvasRenderingContext2D, rc: ReturnType<typeof
     drawTextBlock(ctx, el.text, el.fontSize, el.fontFamily, el.strokeColor, el.x, el.y, el.width, el.textAlign);
   } else if (el.type === 'markdown') {
     drawMarkdown(ctx, el);
+  } else if (el.type === 'embed') {
+    drawEmbedCard(ctx, el);
   } else if (el.type === 'image') {
     const img = el.dataURL ? getImage(el.dataURL, opts.onImageLoad) : null;
     if (img) ctx.drawImage(img, el.x, el.y, el.width, el.height);

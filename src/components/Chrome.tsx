@@ -24,6 +24,8 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
     zen: () => actions.setApp({ zen: true }),
     present: () => actions.setApp({ presenting: true }),
     mermaid: () => actions.setApp({ mermaidOpen: true }),
+    embed: () => actions.setApp({ embedDialog: { id: null } }),
+    shapeassist: actions.toggleShapeAssist,
     view: () => actions.setApp({ viewOnly: true, tool: 'hand', selectedIds: {} }),
     share: actions.copyShareLink,
     linkopen: actions.linkOpenFile,
@@ -52,6 +54,8 @@ export function MainMenu({ app, actions }: { app: AppState; actions: any }) {
           <MenuSeparator className="menu-sep" />
           {it('present', Icons.frameTool, 'Present frames', 'alt+p')}
           {it('mermaid', Icons.comment, 'Mermaid to diagram…')}
+          {it('embed', Icons.embed, 'Embed a web page…')}
+          {it('shapeassist', Icons.shapeConvert, app.shapeAssist ? 'Shape snapping: on (hold pen to snap)' : 'Shape snapping: off')}
           {it('view', Icons.unlock, 'View-only mode')}
           {it('share', Icons.export, 'Copy view-only share link')}
           {canLink && (app.fileLink ? it('unlink', Icons.save, `Stop autosaving to “${app.fileLink}”`) : <>
@@ -177,6 +181,7 @@ export function ContextMenu({ controller, selected, actions, app }: { controller
             {it('pastestyle', 'Paste styles', 'mod+alt+v')}
             {sep}
             {it('duplicate', 'Duplicate', 'mod+d')}
+            {selected.some((e) => e.type === 'freedraw') && it('convert', 'Convert to shape')}
             {selected.length > 1 && it('group', 'Group selection', 'mod+g')}
             {selected.some((e) => e.groupIds.length > 0) && it('ungroup', 'Ungroup selection', 'mod+shift+g')}
             {it('lock', selected.every((e) => e.locked) ? 'Unlock' : 'Lock', 'mod+shift+l')}

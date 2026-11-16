@@ -1,6 +1,7 @@
 import type { DrawElement, ElType, Pt, Style } from './types';
 import { FONTS } from './types';
 import { fitMarkdown } from './mdrender';
+import { sanitizeUrl } from './embed';
 import { clamp, dist, distToSegment, pointInPolygon, rotatePt, seedRand, uid } from './utils';
 
 export const LINE_HEIGHT = 1.25;
@@ -145,6 +146,7 @@ export function hitElement(el: DrawElement, p: Pt, tol: number): boolean {
     case 'text':
     case 'image':
     case 'markdown':
+    case 'embed':
       return inRect;
     case 'comment':
       return Math.hypot(q[0] - el.x, q[1] - el.y) <= tol + 12;
@@ -176,6 +178,10 @@ export function hitElement(el: DrawElement, p: Pt, tol: number): boolean {
     default: {
       const pts = (el.type === 'freedraw' ? el.points : renderPoints(el)).map(([a, b]) => [a + el.x, b + el.y] as Pt);
       if (pts.length === 1) return dist(q, pts[0]) <= t + 2;
+      if (el.closed && pts.length >= 3) {
+        if (isFilled(el) && pointInPolygon(q, pts)) return true;
+        if (distToSegment(q, pts[pts.length - 1], pts[0]) <= t) return true;
+      }
       for (let i = 0; i < pts.length - 1; i++) if (distToSegment(q, pts[i], pts[i + 1]) <= t + (el.type === 'freedraw' ? 2 : 0)) return true;
       // label hit
       if (el.text) {
@@ -293,7 +299,7 @@ export function normalizeImported(raw: any, defaults: Style): DrawElement | null
 
 function normalizeUnsafe(raw: any, defaults: Style): DrawElement | null {
   if (!raw || typeof raw !== 'object' || raw.isDeleted) return null;
-  const types = ['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame', 'comment', 'markdown'];
+  const types = ['rectangle', 'diamond', 'ellipse', 'arrow', 'line', 'freedraw', 'text', 'image', 'frame', 'comment', 'markdown', 'embed'];
   if (!types.includes(raw.type)) return null;
   const el = newElement(raw.type, finite(raw.x, 0), finite(raw.y, 0), defaults);
   const linear = raw.type === 'arrow' || raw.type === 'line' || raw.type === 'freedraw';
@@ -339,6 +345,14 @@ function normalizeUnsafe(raw: any, defaults: Style): DrawElement | null {
     endBinding: sid(raw.endBinding?.elementId) ?? sid(raw.endBinding),
   };
   if (out.type === 'image' && !out.dataURL) return null;
+  if (out.type === 'embed') {
+    const url = sanitizeUrl(raw.url ?? raw.link);
+    if (!url) return null;
+    out.url = url;
+    out.width = out.width || 640;
+    out.height = out.height || 400;
+  }
+  if (out.type === 'line' && raw.closed === true && out.points.length >= 3) out.closed = true;
   return out.type === 'text' ? fitText(out) : out.type === 'markdown' ? fitMarkdown(out) : out;
 }
 export { clamp };

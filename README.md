@@ -31,12 +31,15 @@ npm test          # run once
 npm run test:watch
 ```
 
-Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not regress: cleaning of untrusted data, the project store and its storage-full and migration paths, share-link limits, the compatible JSON format, Markdown import/export and the Mermaid parser. Canvas drawing and mouse interaction are not unit-tested.
+Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not regress: cleaning of untrusted data, the project store and its storage-full and migration paths, share-link limits, the compatible JSON format, Markdown import/export, the Mermaid parser, shape recognition, flood fill and embed URL safety. Canvas drawing and mouse interaction are not unit-tested.
 
 ## Features
 
 ### Drawing
-- Tools: selection, hand, rectangle, diamond, ellipse, arrow, line, freehand, text, image, eraser, laser pointer, frame, comment and Markdown block
+- Tools: selection, hand, rectangle, diamond, ellipse, arrow, line, freehand, text, image, embedded web page, bucket fill, eraser, laser pointer, frame, comment and Markdown block
+- **Draw to shape:** pause the pen for half a second at the end of a freehand stroke and it snaps to the closest clean rectangle, ellipse, diamond, triangle or straight line. Strokes that match nothing (scribbles, open arcs) stay as you drew them, and a selected stroke can be converted from the panel or context menu. Toggle it in the main menu
+- **Bucket fill (`B`):** click a shape to fill it with the chosen colour, or click inside any area enclosed by lines or strokes to fill that area. Open areas are reported instead of leaking
+- **Embedded web pages (`I`):** paste a link to show a live page on the canvas (YouTube, Vimeo and Loom links become players). Pages stay unloaded, drawn as a card, until you double-click them; they load in a sandboxed iframe and can be unloaded, opened in a new tab or edited at any time
 - Hand-drawn rendering with three sloppiness levels, plus fill styles (hachure, cross-hatch, solid, zigzag), stroke width and style, rounded or sharp edges, opacity, colors and fonts
 - Arrows with sharp, curved or elbow routing, multi-point lines, several arrowheads, and arrows that stay attached to shapes
 - Text inside shapes, on arrows and as free text
@@ -68,7 +71,7 @@ Unit tests (Vitest + jsdom) live in `tests/` and cover the logic that must not r
 
 | Action | Shortcut |
 | --- | --- |
-| Tools | `V` `R` `D` `O` `A` `L` `P` `T` `E` `H` `K` `F` `C` `M` or number keys `1`–`9` |
+| Tools | `V` `R` `D` `O` `A` `L` `P` `T` `E` `H` `K` `F` `C` `M` `B` `I` or number keys `1`–`9` |
 | Keep tool active | `Q` |
 | Undo / redo | `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z` |
 | Duplicate | `Ctrl/Cmd+D` |
@@ -94,6 +97,9 @@ src/
     interchange.ts  Compatible JSON import/export
     mermaid.ts    Mermaid parser and layout
     markdown.ts   Markdown import (to elements) and export
+    shape.ts      Shape recognition for freehand strokes
+    fill.ts       Flood fill: area detection and contour tracing
+    embed.ts      Safe URLs for embedded pages
     mdrender.ts   Markdown block layout and canvas rendering
     share.ts      Compressed share-link encoding
     image.ts      Image resize / recompress on import
@@ -106,6 +112,7 @@ All editor state lives in a small set of refs inside `components/Editor.tsx`; th
 - No backend, accounts or network requests: drawings stay in `localStorage`, so there is nothing to rate-limit. If you deploy on Vercel you still get its platform DDoS protection
 - `next.config.mjs` sends a restrictive Content-Security-Policy (everything must load from the app's own origin, no framing, no plugins; inline scripts are still allowed because Next.js and the UI SDK need them, so it is not an XSS defence) plus `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP and HSTS headers (HSTS without `preload`), and hides `X-Powered-By`
 - Fonts are self-hosted (`@fontsource`), so no third-party requests are made
+- Embedded pages accept only http(s) links (no `javascript:`, `data:` or credentials), load only after an explicit double-click (so a shared drawing can't make your browser contact other sites on its own), run in a sandboxed iframe with no referrer, and are allowed by a `frame-src` rule in the CSP
 - Share links and imported files are parsed as data only (never executed); image sources must be `data:` URLs, and rejected links show a message and are size-limited: 2 MB link, 16 MB decompressed, 20,000 elements, 25 MB files or images
 - PostCSS is pinned to a patched version through `overrides`; `npm audit` reports 0 vulnerabilities
 

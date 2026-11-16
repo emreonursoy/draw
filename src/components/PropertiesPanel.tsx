@@ -67,7 +67,8 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
   const first = selected[0];
   const v = <K extends keyof Style>(k: K): Style[K] => (first ? (first[k] as Style[K]) : app.style[k]);
   const set = (p: Partial<Style>) => actions.applyStyle(p);
-  const shape = has('rectangle', 'diamond', 'ellipse');
+  const closedLine = selected.some((e) => e.type === 'line' && e.closed);
+  const shape = has('rectangle', 'diamond', 'ellipse') || closedLine;
   const lin = has('arrow', 'line');
   const hasText = has('text', 'markdown') || selected.some((e) => e.text);
   const many = selected.length > 1;
@@ -112,8 +113,8 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
   return (
     <div className="panel" onPointerDown={(e) => e.stopPropagation()}>
       {!has('image') && <Section label="Stroke"><ColorPicker label="stroke" value={v('strokeColor')} presets={STROKES} onChange={(c) => set({ strokeColor: c })} /></Section>}
-      {(shape || has('markdown')) && <Section label="Background"><ColorPicker label="background" value={v('backgroundColor')} presets={BGS} transparent onChange={(c) => set({ backgroundColor: c })} /></Section>}
-      {shape && <Section label="Fill"><OptionGroup label="Fill style" value={v('fillStyle')} options={fills} onChange={(x) => set({ fillStyle: x })} /></Section>}
+      {(shape || has('markdown') || has('bucket')) && <Section label={has('bucket') ? 'Bucket colour' : 'Background'}><ColorPicker label="background" value={v('backgroundColor')} presets={BGS} transparent onChange={(c) => set({ backgroundColor: c })} /></Section>}
+      {shape && !has('bucket') && <Section label="Fill"><OptionGroup label="Fill style" value={v('fillStyle')} options={fills} onChange={(x) => set({ fillStyle: x })} /></Section>}
       {(shape || lin || has('freedraw')) && <Section label="Stroke width"><OptionGroup label="Stroke width" value={v('strokeWidth')} options={widths} onChange={(x) => set({ strokeWidth: x })} /></Section>}
       {(shape || lin) && (
         <>
@@ -163,6 +164,8 @@ export default function PropertiesPanel({ app, selected, actions }: { app: AppSt
             <IconButton className="opt" label="Flip horizontal" kbd="Shift+H" onClick={() => A.flip('h')}>{Icons.flipH}</IconButton>
             <IconButton className="opt" label="Flip vertical" kbd="Shift+V" onClick={() => A.flip('v')}>{Icons.flipV}</IconButton>
             <IconButton className="opt" label="Duplicate" kbd="Ctrl+D" onClick={A.duplicate}>{Icons.copy}</IconButton>
+            {selected.some((e) => e.type === 'freedraw') && <IconButton className="opt" label="Convert to shape" onClick={A.convertToShape}>{Icons.shapeConvert}</IconButton>}
+            {selected.some((e) => e.type === 'embed') && <IconButton className="opt" label="Edit link" onClick={A.editEmbed}>{Icons.edit}</IconButton>}
             {many && <IconButton className="opt" label="Group" kbd="Ctrl+G" onClick={A.group}>{Icons.group}</IconButton>}
             {selected.some((e) => e.groupIds.length) && <IconButton className="opt" label="Ungroup" kbd="Ctrl+Shift+G" onClick={A.ungroup}>⊟</IconButton>}
             <IconButton className="opt" label="Lock" kbd="Ctrl+Shift+L" onClick={A.toggleLock}>{Icons.lock}</IconButton>

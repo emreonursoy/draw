@@ -14,6 +14,8 @@ const csp = [
   "font-src 'self' data:",
   "connect-src 'self'",
   "worker-src 'self' blob:",
+  // embedded pages (only ever loaded after the user double-clicks an embed)
+  "frame-src https: http://localhost:* http://127.0.0.1:*",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -97,3 +97,29 @@ describe('compatible JSON import', () => {
     expect(arrow.endBinding).toBe('b');
   });
 });
+
+describe('embeds and polygons in the compatible format', () => {
+  it('round-trips an embed through the embeddable type', () => {
+    const e = { ...newElement('embed', 0, 0, DEFAULT_STYLE), id: 'e1', width: 300, height: 200, url: 'https://example.com/x' };
+    const out: any = exportInterchange([e], '#fff', false);
+    expect(out.elements[0].type).toBe('embeddable');
+    expect(out.elements[0].link).toBe('https://example.com/x');
+    const back = importInterchange(out).elements[0];
+    expect(back.type).toBe('embed');
+    expect(back.url).toBe('https://example.com/x');
+  });
+
+  it('refuses an embeddable with an unsafe link on import', () => {
+    expect(importInterchange({ elements: [{ id: 'x', type: 'embeddable', link: 'javascript:alert(1)', x: 0, y: 0, width: 10, height: 10 }] }).elements).toEqual([]);
+  });
+
+  it('writes closed polygons with the first point repeated and reads them back', () => {
+    const poly = withAbsPoints({ ...newElement('line', 0, 0, DEFAULT_STYLE), id: 'p', closed: true }, [[0, 0], [100, 0], [50, 80]]);
+    const out: any = exportInterchange([poly], '#fff', false);
+    expect(out.elements[0].polygon).toBe(true);
+    expect(out.elements[0].points).toHaveLength(4);
+    const back = importInterchange(out).elements[0];
+    expect(back.closed).toBe(true);
+    expect(back.points).toHaveLength(3);
+  });
+});

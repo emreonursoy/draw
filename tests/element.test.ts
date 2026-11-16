@@ -184,3 +184,39 @@ describe('frames and groups', () => {
     expect(groupSelect([g, h, lone], lone)).toEqual([lone.id]);
   });
 });
+
+describe('embeds and closed polygons', () => {
+  it('keeps only safe http(s) embed URLs and defaults the size', () => {
+    const ok = norm({ type: 'embed', url: 'example.com/page' })!;
+    expect(ok.url).toBe('https://example.com/page');
+    expect(ok.width).toBe(640);
+    expect(ok.height).toBe(400);
+    expect(norm({ type: 'embed', url: 'javascript:alert(1)' })).toBeNull();
+    expect(norm({ type: 'embed', url: 'data:text/html,hi' })).toBeNull();
+    expect(norm({ type: 'embed' })).toBeNull();
+    expect(norm({ type: 'embed', link: 'https://example.com' })!.url).toBe('https://example.com/');
+  });
+
+  it('only treats lines with at least three points as closed', () => {
+    expect(norm({ type: 'line', closed: true, points: [[0, 0], [10, 0], [10, 10]] })!.closed).toBe(true);
+    expect(norm({ type: 'line', closed: true, points: [[0, 0], [10, 0]] })!.closed).toBeUndefined();
+    expect(norm({ type: 'rectangle', closed: true })!.closed).toBeUndefined();
+  });
+
+  it('hit-tests the inside of a filled closed polygon but not an open or unfilled one', () => {
+    const tri = withAbsPoints({ ...newElement('line', 0, 0, DEFAULT_STYLE), closed: true, backgroundColor: '#ffc9c9' }, [[0, 0], [100, 0], [50, 100]]);
+    expect(hitElement(tri, [50, 30], 2)).toBe(true);
+    expect(hitElement(tri, [5, 90], 2)).toBe(false);
+    const hollow = { ...tri, backgroundColor: 'transparent' };
+    expect(hitElement(hollow, [50, 30], 2)).toBe(false);
+    expect(hitElement(hollow, [50, 0], 2)).toBe(true); // outline still hits
+    // the closing edge counts even though it has no stored point
+    expect(hitElement(hollow, [25, 50], 2)).toBe(true);
+  });
+
+  it('hit-tests embeds like images (the whole box)', () => {
+    const e = norm({ type: 'embed', url: 'https://example.com', x: 10, y: 10, width: 200, height: 100 })!;
+    expect(hitElement(e, [100, 60], 2)).toBe(true);
+    expect(hitElement(e, [500, 500], 2)).toBe(false);
+  });
+});
