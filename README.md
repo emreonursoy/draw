@@ -95,9 +95,9 @@ All editor state lives in a small set of refs inside `components/Editor.tsx`; th
 ## Security
 
 - No backend, accounts or network requests: drawings stay in `localStorage`, so there is nothing to rate-limit. If you deploy on Vercel you still get its platform DDoS protection
-- `next.config.mjs` sends a strict Content-Security-Policy (same-origin only, no framing, no plugins) plus `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP and HSTS headers, and hides `X-Powered-By`
+- `next.config.mjs` sends a restrictive Content-Security-Policy (everything must load from the app's own origin, no framing, no plugins; inline scripts are still allowed because Next.js and the UI SDK need them, so it is not an XSS defence) plus `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP and HSTS headers (HSTS without `preload`), and hides `X-Powered-By`
 - Fonts are self-hosted (`@fontsource`), so no third-party requests are made
-- Share links and imported files are parsed as data only (never executed) and are size-limited: 4 MB link, 40 MB decompressed, 20,000 elements, 100 MB files
+- Share links and imported files are parsed as data only (never executed); image sources must be `data:` URLs, and rejected links show a message and are size-limited: 2 MB link, 16 MB decompressed, 20,000 elements, 25 MB files or images
 - PostCSS is pinned to a patched version through `overrides`; `npm audit` reports 0 vulnerabilities
 
 ## Not included

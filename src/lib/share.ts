@@ -5,12 +5,12 @@ export async function encodeScene(data: unknown): Promise<string> {
   const stream = new Blob([JSON.stringify(data)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
   return b64(new Uint8Array(await new Response(stream).arrayBuffer()));
 }
-const MAX_ENCODED = 4_000_000; // characters in the URL fragment
-const MAX_DECODED = 40_000_000; // bytes after decompression (guards against zip bombs)
+export const MAX_LINK_CHARS = 2_000_000; // longest share link we create or open
+const MAX_DECODED = 16_000_000; // bytes after decompression (guards against zip bombs)
 const MAX_ELEMENTS = 20_000;
 
 export async function decodeScene(s: string): Promise<any> {
-  if (s.length > MAX_ENCODED) throw new Error('Share link is too large');
+  if (s.length > MAX_LINK_CHARS) throw new Error('Share link is too large');
   const stream = new Blob([unb64(s) as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];

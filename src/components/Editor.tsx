@@ -16,7 +16,7 @@ import { ProjectsDialog } from './Projects';
 import { parseMarkdown, toMarkdown } from '@/lib/markdown';
 import { fitMarkdown } from '@/lib/mdrender';
 import { processImage } from '@/lib/image';
-import { decodeScene, encodeScene } from '@/lib/share';
+import { decodeScene, encodeScene, MAX_LINK_CHARS } from '@/lib/share';
 import { MermaidDialog } from './MermaidDialog';
 import Presenter from './Presenter';
 import CommentPopover from './CommentPopover';
@@ -43,6 +43,7 @@ type Drag =
   | { kind: 'textClick'; p: Pt };
 
 const GRID = 20;
+const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 const THEME_KEY = 'draw:theme';
 const LIBKEY = 'draw:library:v1';
 const TOOL_KEYS: Record<string, ToolType> = {
@@ -72,7 +73,7 @@ export default function Editor() {
     space: false, pointer: [0, 0] as Pt, multi: null as string | null, erasing: new Set<string>(),
     boxSel: null as { x1: number; y1: number; x2: number; y2: number } | null, hoverBind: null as DrawElement | null,
     laser: [] as [number, number, number][], clip: [] as DrawElement[], pending: null as DrawElement | null,
-    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], fileHandle: null as any, shared: null as any, saveT: 0, projectId: '' as string,
+    styleClip: null as Partial<Style> | null, raf: 0, imageAt: null as Pt | null, lib: [] as LibItem[], saveWarned: false, fileHandle: null as any, shared: null as any, saveT: 0, projectId: '' as string,
   });
   const sceneRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -338,6 +339,7 @@ export default function Editor() {
   const copyShareLink = async () => {
     const data = { elements: E().filter((e) => e.type !== 'comment'), viewBg: A().viewBg };
     const enc = await encodeScene(data);
+    if (enc.length > MAX_LINK_CHARS) return toast('This drawing is too large to share as a link. Export it as a file instead.');
     const url = `${location.origin}${location.pathname}#v=${enc}`;
     try { await navigator.clipboard.writeText(url); toast(`View-only link copied (${Math.round(url.length / 1024)} KB). The drawing lives inside the link, so big drawings make long links.`); }
     catch { toast('Could not access the clipboard. Your browser blocked copying the link.'); }
@@ -397,6 +399,7 @@ export default function Editor() {
     pasteElements([el]);
   };
   const insertImageFile = async (file: File | Blob, at?: Pt) => {
+    if (file.size > MAX_IMPORT_BYTES) return toast('That image is too large (limit 25 MB).');
     const dataURL = await processImage(file, A().imageMode);
     const img = new Image();
     img.src = dataURL;
@@ -429,15 +432,20 @@ export default function Editor() {
     const a = A();
     return { elements: E(), viewBg: a.viewBg, grid: a.grid, scrollX: a.scrollX, scrollY: a.scrollY, zoom: a.zoom };
   };
-  const saveNow = () => { if (misc.current.projectId) saveProject(misc.current.projectId, snapshot()); };
+  const saveNow = () => {
+    if (!misc.current.projectId) return;
+    if (saveProject(misc.current.projectId, snapshot())) { misc.current.saveWarned = false; return; }
+    if (!misc.current.saveWarned) { misc.current.saveWarned = true; toast('Browser storage is full, so this project is not being saved. Export it as a file or delete other projects.'); }
+  };
   const loadProject = (id: string) => {
     const d = getProject(id) || emptyData();
     const els = ((d.elements || []) as any[]).map((r) => normalizeImported(r, DEFAULT_STYLE)).filter(Boolean) as DrawElement[];
     misc.current.projectId = id;
+    if (misc.current.shared) { misc.current.shared = null; if (location.hash) history.replaceState(null, '', location.pathname); }
     setCurrentId(id);
     st.current.elements = els;
     st.current.hist = { stack: [{ elements: els, sel: {} }], idx: 0 };
-    setApp({ selectedIds: {}, editing: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
+    setApp({ selectedIds: {}, editing: null, viewOnly: false, sharedView: false, activeComment: null, viewBg: d.viewBg || '#ffffff', grid: !!d.grid, scrollX: d.scrollX ?? 0, scrollY: d.scrollY ?? 0, zoom: d.zoom ?? 1, projectName: listProjects().find((p) => p.id === id)?.name ?? 'Untitled' });
   };
   const switchProject = (id: string) => { finishMulti(true, true); saveNow(); loadProject(id); };
   const newProject = (name: string) => { finishMulti(true, true); saveNow(); loadProject(createProject(name)); };
@@ -453,7 +461,7 @@ export default function Editor() {
   const refreshName = () => setApp({ projectName: listProjects().find((p) => p.id === misc.current.projectId)?.name ?? 'Untitled' });
   /** Import a .draw or compatible .json file as a new project */
   const openFile = async (file: File) => {
-    if (file.size > 100 * 1024 * 1024) return toast('That file is too large (limit 100 MB).');
+    if (file.size > MAX_IMPORT_BYTES) return toast('That file is too large (limit 25 MB).');
     if (file.type.startsWith('image/')) return insertImageFile(file);
     if (/\.(md|markdown|mdx|txt)$/i.test(file.name) || file.type === 'text/markdown') {
       const els = parseMarkdown(await file.text(), { ...DEFAULT_STYLE });
@@ -461,6 +469,7 @@ export default function Editor() {
       finishMulti(true, true);
       saveNow();
       loadProject(createProject(file.name.replace(/\.(md|markdown|mdx|txt)$/i, '') || 'Markdown', { ...emptyData(), elements: els }));
+      saveNow();
       setTimeout(() => zoomToElements(E()), 0);
       return;
     }
@@ -479,6 +488,7 @@ export default function Editor() {
       finishMulti(true, true);
       saveNow();
       loadProject(createProject(file.name.replace(/\.(draw|json)$/i, '') || 'Imported', d));
+      saveNow();
       setTimeout(() => zoomToElements(E()), 0);
     } catch { toast('Could not read this file. Expected a .draw, .json or .md file.'); }
   };
@@ -1110,7 +1120,10 @@ export default function Editor() {
           st.current.hist = { stack: [{ elements: els, sel: {} }], idx: 0 };
           setApp({ viewOnly: true, sharedView: true, tool: 'hand', viewBg: d.viewBg || '#ffffff', projectName: 'Shared drawing' });
           setTimeout(() => zoomToElements(els), 50);
-        }).catch(() => {});
+        }).catch(() => {
+          history.replaceState(null, '', location.pathname);
+          toast('This share link is invalid, damaged or too large to open.');
+        });
       }
     } catch {}
     const resize = () => setApp({ width: window.innerWidth, height: window.innerHeight });

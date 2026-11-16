@@ -1,7 +1,11 @@
 const isDev = process.env.NODE_ENV !== 'production';
 
-// Content-Security-Policy: everything is served from our own origin. Next.js needs inline
-// scripts/styles for hydration; 'unsafe-eval' is only allowed in development.
+// Content-Security-Policy: everything is served from our own origin (no third-party scripts, fonts,
+// images or connections) and the app cannot be framed. Next.js hydration and the UI SDK need inline
+// scripts/styles, so 'unsafe-inline' stays: this policy limits where content can load from, but it is
+// NOT a defence against injected inline script. 'unsafe-eval' is only allowed in development.
+// (upgrade-insecure-requests is intentionally omitted: it breaks plain-HTTP self-hosting; HTTPS hosts
+// such as Vercel already redirect and send HSTS.)
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
@@ -14,7 +18,6 @@ const csp = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  ...(isDev ? [] : ['upgrade-insecure-requests']),
 ].join('; ');
 
 const securityHeaders = [
@@ -24,7 +27,7 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()' },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000' },
 ];
 
 /** @type {import('next').NextConfig} */

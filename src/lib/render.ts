@@ -15,6 +15,7 @@ const images = new Map<string, HTMLImageElement>();
 export const DARK_FILTER = 'invert(93%) hue-rotate(180deg)';
 
 export function getImage(dataURL: string, onLoad?: () => void): HTMLImageElement | null {
+  if (!/^data:image\//i.test(dataURL)) return null;
   let img = images.get(dataURL);
   if (!img) {
     img = new Image();

@@ -287,10 +287,11 @@ export function normalizeImported(raw: any, defaults: Style): DrawElement | null
     arrowType: ['sharp', 'round', 'elbow'].includes(raw.arrowType) ? raw.arrowType : raw.elbowed ? 'elbow' : raw.roundness ? 'round' : 'sharp',
     startArrowhead: raw.startArrowhead ?? null,
     endArrowhead: raw.type === 'arrow' ? (raw.endArrowhead === undefined ? 'arrow' : raw.endArrowhead) : null,
-    dataURL: raw.dataURL,
+    dataURL: typeof raw.dataURL === 'string' && /^data:image\/(png|jpe?g|gif|webp|avif|bmp|svg\+xml)[;,]/i.test(raw.dataURL) ? raw.dataURL : undefined,
     startBinding: raw.startBinding?.elementId ?? (typeof raw.startBinding === 'string' ? raw.startBinding : null),
     endBinding: raw.endBinding?.elementId ?? (typeof raw.endBinding === 'string' ? raw.endBinding : null),
   };
+  if (out.type === 'image' && !out.dataURL) return null;
   return out.type === 'text' ? fitText(out) : out.type === 'markdown' ? fitMarkdown(out) : out;
 }
 export { clamp };
